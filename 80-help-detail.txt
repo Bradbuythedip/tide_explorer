@@ -1,0 +1,1239 @@
+=== getblock ===
+getblock "blockhash" ( verbosity )
+
+If verbosity is 0, returns a string that is serialized, hex-encoded data for block 'hash'.
+If verbosity is 1, returns an Object with information about block <hash>.
+If verbosity is 2, returns an Object with information about block <hash> and information about each transaction. 
+
+Arguments:
+1. blockhash    (string, required) The block hash
+2. verbosity    (numeric, optional, default=1) 0 for hex-encoded data, 1 for a json object, and 2 for json object with transaction data
+
+Result (for verbosity = 0):
+"data"             (string) A string that is serialized, hex-encoded data for block 'hash'.
+
+Result (for verbosity = 1):
+{
+  "hash" : "hash",     (string) the block hash (same as provided)
+  "confirmations" : n,   (numeric) The number of confirmations, or -1 if the block is not on the main chain
+  "size" : n,            (numeric) The block size
+  "strippedsize" : n,    (numeric) The block size excluding witness data
+  "weight" : n           (numeric) The block weight as defined in BIP 141
+  "height" : n,          (numeric) The block height or index
+  "version" : n,         (numeric) The block version
+  "versionHex" : "00000000", (string) The block version formatted in hexadecimal
+  "merkleroot" : "xxxx", (string) The merkle root
+  "tx" : [               (array of string) The transaction ids
+     "transactionid"     (string) The transaction id
+     ,...
+  ],
+  "time" : ttt,          (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)
+  "mediantime" : ttt,    (numeric) The median block time in seconds since epoch (Jan 1 1970 GMT)
+  "nonce" : n,           (numeric) The nonce
+  "bits" : "1d00ffff", (string) The bits
+  "difficulty" : x.xxx,  (numeric) The difficulty
+  "chainwork" : "xxxx",  (string) Expected number of hashes required to produce the chain up to this block (in hex)
+  "nTx" : n,             (numeric) The number of transactions in the block.
+  "previousblockhash" : "hash",  (string) The hash of the previous block
+  "nextblockhash" : "hash"       (string) The hash of the next block
+}
+
+Result (for verbosity = 2):
+{
+  ...,                     Same output as verbosity = 1.
+  "tx" : [               (array of Objects) The transactions in the format of the getrawtransaction RPC. Different from verbosity = 1 "tx" result.
+         ,...
+  ],
+  ,...                     Same output as verbosity = 1.
+}
+
+Examples:
+> tidecoin-cli getblock "e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getblock", "params": ["e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getblockheader ===
+getblockheader "blockhash" ( verbose )
+
+If verbose is false, returns a string that is serialized, hex-encoded data for blockheader 'hash'.
+If verbose is true, returns an Object with information about blockheader <hash>.
+
+Arguments:
+1. blockhash    (string, required) The block hash
+2. verbose      (boolean, optional, default=true) true for a json object, false for the hex-encoded data
+
+Result (for verbose = true):
+{
+  "hash" : "hash",     (string) the block hash (same as provided)
+  "confirmations" : n,   (numeric) The number of confirmations, or -1 if the block is not on the main chain
+  "height" : n,          (numeric) The block height or index
+  "version" : n,         (numeric) The block version
+  "versionHex" : "00000000", (string) The block version formatted in hexadecimal
+  "merkleroot" : "xxxx", (string) The merkle root
+  "time" : ttt,          (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)
+  "mediantime" : ttt,    (numeric) The median block time in seconds since epoch (Jan 1 1970 GMT)
+  "nonce" : n,           (numeric) The nonce
+  "bits" : "1d00ffff", (string) The bits
+  "difficulty" : x.xxx,  (numeric) The difficulty
+  "chainwork" : "0000...1f3"     (string) Expected number of hashes required to produce the current chain (in hex)
+  "nTx" : n,             (numeric) The number of transactions in the block.
+  "previousblockhash" : "hash",  (string) The hash of the previous block
+  "nextblockhash" : "hash",      (string) The hash of the next block
+}
+
+Result (for verbose=false):
+"data"             (string) A string that is serialized, hex-encoded data for block 'hash'.
+
+Examples:
+> tidecoin-cli getblockheader "e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getblockheader", "params": ["e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getblockstats ===
+getblockstats hash_or_height ( stats )
+
+Compute per block statistics for a given window. All amounts are in satoshis.
+It won't work for some heights with pruning.
+It won't work without -txindex for utxo_size_inc, *fee or *feerate stats.
+
+Arguments:
+1. hash_or_height    (string or numeric, required) The block hash or height of the target block
+2. stats             (json array, optional, default=all values) Values to plot (see result below)
+     [
+       "height",     (string) Selected statistic
+       "time",       (string) Selected statistic
+       ...
+     ]
+
+Result:
+{                           (json object)
+  "avgfee": xxxxx,          (numeric) Average fee in the block
+  "avgfeerate": xxxxx,      (numeric) Average feerate (in satoshis per virtual byte)
+  "avgtxsize": xxxxx,       (numeric) Average transaction size
+  "blockhash": xxxxx,       (string) The block hash (to check for potential reorgs)
+  "feerate_percentiles": [  (array of numeric) Feerates at the 10th, 25th, 50th, 75th, and 90th percentile weight unit (in satoshis per virtual byte)
+      "10th_percentile_feerate",      (numeric) The 10th percentile feerate
+      "25th_percentile_feerate",      (numeric) The 25th percentile feerate
+      "50th_percentile_feerate",      (numeric) The 50th percentile feerate
+      "75th_percentile_feerate",      (numeric) The 75th percentile feerate
+      "90th_percentile_feerate",      (numeric) The 90th percentile feerate
+  ],
+  "height": xxxxx,          (numeric) The height of the block
+  "ins": xxxxx,             (numeric) The number of inputs (excluding coinbase)
+  "maxfee": xxxxx,          (numeric) Maximum fee in the block
+  "maxfeerate": xxxxx,      (numeric) Maximum feerate (in satoshis per virtual byte)
+  "maxtxsize": xxxxx,       (numeric) Maximum transaction size
+  "medianfee": xxxxx,       (numeric) Truncated median fee in the block
+  "mediantime": xxxxx,      (numeric) The block median time past
+  "mediantxsize": xxxxx,    (numeric) Truncated median transaction size
+  "minfee": xxxxx,          (numeric) Minimum fee in the block
+  "minfeerate": xxxxx,      (numeric) Minimum feerate (in satoshis per virtual byte)
+  "mintxsize": xxxxx,       (numeric) Minimum transaction size
+  "outs": xxxxx,            (numeric) The number of outputs
+  "subsidy": xxxxx,         (numeric) The block subsidy
+  "swtotal_size": xxxxx,    (numeric) Total size of all segwit transactions
+  "swtotal_weight": xxxxx,  (numeric) Total weight of all segwit transactions divided by segwit scale factor (4)
+  "swtxs": xxxxx,           (numeric) The number of segwit transactions
+  "time": xxxxx,            (numeric) The block time
+  "total_out": xxxxx,       (numeric) Total amount in all outputs (excluding coinbase and thus reward [ie subsidy + totalfee])
+  "total_size": xxxxx,      (numeric) Total size of all non-coinbase transactions
+  "total_weight": xxxxx,    (numeric) Total weight of all non-coinbase transactions divided by segwit scale factor (4)
+  "totalfee": xxxxx,        (numeric) The fee total
+  "txs": xxxxx,             (numeric) The number of transactions (excluding coinbase)
+  "utxo_increase": xxxxx,   (numeric) The increase/decrease in the number of unspent outputs
+  "utxo_size_inc": xxxxx,   (numeric) The increase/decrease in size for the utxo index (not discounting op_return and similar)
+}
+
+Examples:
+> tidecoin-cli getblockstats 1000 '["minfeerate","avgfeerate"]'
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getblockstats", "params": [1000 '["minfeerate","avgfeerate"]'] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getrawtransaction ===
+getrawtransaction "txid" ( verbose "blockhash" )
+
+Return the raw transaction data.
+
+By default this function only works for mempool transactions. When called with a blockhash
+argument, getrawtransaction will return the transaction if the specified block is available and
+the transaction is found in that block. When called without a blockhash argument, getrawtransaction
+will return the transaction if it is in the mempool, or if -txindex is enabled and the transaction
+is in a block in the blockchain.
+
+Hint: Use gettransaction for wallet transactions.
+
+If verbose is 'true', returns an Object with information about 'txid'.
+If verbose is 'false' or omitted, returns a string that is serialized, hex-encoded data for 'txid'.
+
+Arguments:
+1. txid         (string, required) The transaction id
+2. verbose      (boolean, optional, default=false) If false, return a string, otherwise return a json object
+3. blockhash    (string, optional) The block in which to look for the transaction
+
+Result (if verbose is not set or set to false):
+"data"      (string) The serialized, hex-encoded data for 'txid'
+
+Result (if verbose is set to true):
+{
+  "in_active_chain": b, (bool) Whether specified block is in the active chain or not (only present with explicit "blockhash" argument)
+  "hex" : "data",       (string) The serialized, hex-encoded data for 'txid'
+  "txid" : "id",        (string) The transaction id (same as provided)
+  "hash" : "id",        (string) The transaction hash (differs from txid for witness transactions)
+  "size" : n,             (numeric) The serialized transaction size
+  "vsize" : n,            (numeric) The virtual transaction size (differs from size for witness transactions)
+  "weight" : n,           (numeric) The transaction's weight (between vsize*4-3 and vsize*4)
+  "version" : n,          (numeric) The version
+  "locktime" : ttt,       (numeric) The lock time
+  "vin" : [               (array of json objects)
+     {
+       "txid": "id",    (string) The transaction id
+       "vout": n,         (numeric) 
+       "scriptSig": {     (json object) The script
+         "asm": "asm",  (string) asm
+         "hex": "hex"   (string) hex
+       },
+       "sequence": n      (numeric) The script sequence number
+       "txinwitness": ["hex", ...] (array of string) hex-encoded witness data (if any)
+     }
+     ,...
+  ],
+  "vout" : [              (array of json objects)
+     {
+       "value" : x.xxx,            (numeric) The value in TDC
+       "n" : n,                    (numeric) index
+       "scriptPubKey" : {          (json object)
+         "asm" : "asm",          (string) the asm
+         "hex" : "hex",          (string) the hex
+         "reqSigs" : n,            (numeric) The required sigs
+         "type" : "pubkeyhash",  (string) The type, eg 'pubkeyhash'
+         "addresses" : [           (json array of string)
+           "address"        (string) tidecoin address
+           ,...
+         ]
+       }
+     }
+     ,...
+  ],
+  "blockhash" : "hash",   (string) the block hash
+  "confirmations" : n,      (numeric) The confirmations
+  "blocktime" : ttt         (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)
+  "time" : ttt,             (numeric) Same as "blocktime"
+}
+
+Examples:
+> tidecoin-cli getrawtransaction "mytxid"
+> tidecoin-cli getrawtransaction "mytxid" true
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getrawtransaction", "params": ["mytxid", true] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+> tidecoin-cli getrawtransaction "mytxid" false "myblockhash"
+> tidecoin-cli getrawtransaction "mytxid" true "myblockhash"
+
+
+=== decoderawtransaction ===
+decoderawtransaction "hexstring" ( iswitness )
+
+Return a JSON object representing the serialized, hex-encoded transaction.
+
+Arguments:
+1. hexstring    (string, required) The transaction hex string
+2. iswitness    (boolean, optional, default=depends on heuristic tests) Whether the transaction hex is a serialized witness transaction.
+                If iswitness is not present, heuristic tests will be used in decoding.
+                If true, only witness deserialization will be tried.
+                If false, only non-witness deserialization will be tried.
+                This boolean should reflect whether the transaction has inputs
+                (e.g. fully valid, or on-chain transactions), if known by the caller.
+
+Result:
+{
+  "txid" : "id",        (string) The transaction id
+  "hash" : "id",        (string) The transaction hash (differs from txid for witness transactions)
+  "size" : n,             (numeric) The transaction size
+  "vsize" : n,            (numeric) The virtual transaction size (differs from size for witness transactions)
+  "weight" : n,           (numeric) The transaction's weight (between vsize*4 - 3 and vsize*4)
+  "version" : n,          (numeric) The version
+  "locktime" : ttt,       (numeric) The lock time
+  "vin" : [               (array of json objects)
+     {
+       "txid": "id",    (string) The transaction id
+       "vout": n,         (numeric) The output number
+       "scriptSig": {     (json object) The script
+         "asm": "asm",  (string) asm
+         "hex": "hex"   (string) hex
+       },
+       "txinwitness": ["hex", ...] (array of string) hex-encoded witness data (if any)
+       "sequence": n     (numeric) The script sequence number
+     }
+     ,...
+  ],
+  "vout" : [             (array of json objects)
+     {
+       "value" : x.xxx,            (numeric) The value in TDC
+       "n" : n,                    (numeric) index
+       "scriptPubKey" : {          (json object)
+         "asm" : "asm",          (string) the asm
+         "hex" : "hex",          (string) the hex
+         "reqSigs" : n,            (numeric) The required sigs
+         "type" : "pubkeyhash",  (string) The type, eg 'pubkeyhash'
+         "addresses" : [           (json array of string)
+           "12tvKAXCxZjSmdNbao16dKXC8tRWfcF5oc"   (string) tidecoin address
+           ,...
+         ]
+       }
+     }
+     ,...
+  ],
+}
+
+Examples:
+> tidecoin-cli decoderawtransaction "hexstring"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "decoderawtransaction", "params": ["hexstring"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== decodescript ===
+decodescript "hexstring"
+
+Decode a hex-encoded script.
+
+Arguments:
+1. hexstring    (string, required) the hex-encoded script
+
+Result:
+{
+  "asm":"asm",   (string) Script public key
+  "hex":"hex",   (string) hex-encoded public key
+  "type":"type", (string) The output type
+  "reqSigs": n,    (numeric) The required signatures
+  "addresses": [   (json array of string)
+     "address"     (string) tidecoin address
+     ,...
+  ],
+  "p2sh","address" (string) address of P2SH script wrapping this redeem script (not returned if the script is already a P2SH).
+}
+
+Examples:
+> tidecoin-cli decodescript "hexstring"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "decodescript", "params": ["hexstring"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== validateaddress ===
+validateaddress "address"
+
+Return information about the given tidecoin address.
+
+Arguments:
+1. address    (string, required) The tidecoin address to validate
+
+Result:
+{
+  "isvalid" : true|false,       (boolean) If the address is valid or not. If not, this is the only property returned.
+  "address" : "address",        (string) The tidecoin address validated
+  "scriptPubKey" : "hex",       (string) The hex-encoded scriptPubKey generated by the address
+  "isscript" : true|false,      (boolean) If the key is a script
+  "iswitness" : true|false,     (boolean) If the address is a witness address
+  "witness_version" : version   (numeric, optional) The version number of the witness program
+  "witness_program" : "hex"     (string, optional) The hex value of the witness program
+}
+
+Examples:
+> tidecoin-cli validateaddress "LEr4HnaefWYHbMGXcFp2Po1NPRUeIk8km2"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "validateaddress", "params": ["LEr4HnaefWYHbMGXcFp2Po1NPRUeIk8km2"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getmempoolentry ===
+getmempoolentry "txid"
+
+Returns mempool data for given transaction
+
+Arguments:
+1. txid    (string, required) The transaction id (must be in mempool)
+
+Result:
+{                           (json object)
+    "size" : n,             (numeric) virtual transaction size as defined in BIP 141. This is different from actual serialized size for witness transactions as witness data is discounted.
+    "fee" : n,              (numeric) transaction fee in TDC (DEPRECATED)
+    "modifiedfee" : n,      (numeric) transaction fee with fee deltas used for mining priority (DEPRECATED)
+    "time" : n,             (numeric) local time transaction entered pool in seconds since 1 Jan 1970 GMT
+    "height" : n,           (numeric) block height when transaction entered pool
+    "descendantcount" : n,  (numeric) number of in-mempool descendant transactions (including this one)
+    "descendantsize" : n,   (numeric) virtual transaction size of in-mempool descendants (including this one)
+    "descendantfees" : n,   (numeric) modified fees (see above) of in-mempool descendants (including this one) (DEPRECATED)
+    "ancestorcount" : n,    (numeric) number of in-mempool ancestor transactions (including this one)
+    "ancestorsize" : n,     (numeric) virtual transaction size of in-mempool ancestors (including this one)
+    "ancestorfees" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one) (DEPRECATED)
+    "wtxid" : hash,         (string) hash of serialized transaction, including witness data
+    "fees" : {
+        "base" : n,         (numeric) transaction fee in TDC
+        "modified" : n,     (numeric) transaction fee with fee deltas used for mining priority in TDC
+        "ancestor" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one) in TDC
+        "descendant" : n,   (numeric) modified fees (see above) of in-mempool descendants (including this one) in TDC
+    }
+    "depends" : [           (array) unconfirmed transactions used as inputs for this transaction
+        "transactionid",    (string) parent transaction id
+       ... ]
+    "spentby" : [           (array) unconfirmed transactions spending outputs from this transaction
+        "transactionid",    (string) child transaction id
+       ... ]
+    "bip125-replaceable" : true|false,  (boolean) Whether this transaction could be replaced due to BIP125 (replace-by-fee)
+}
+
+Examples:
+> tidecoin-cli getmempoolentry "mytxid"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getmempoolentry", "params": ["mytxid"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getrawmempool ===
+getrawmempool ( verbose )
+
+Returns all transaction ids in memory pool as a json array of string transaction ids.
+
+Hint: use getmempoolentry to fetch a specific transaction from the mempool.
+
+Arguments:
+1. verbose    (boolean, optional, default=false) True for a json object, false for array of transaction ids
+
+Result (for verbose = false):
+[                     (json array of string)
+  "transactionid"     (string) The transaction id
+  ,...
+]
+
+Result: (for verbose = true):
+{                           (json object)
+  "transactionid" : {       (json object)
+    "size" : n,             (numeric) virtual transaction size as defined in BIP 141. This is different from actual serialized size for witness transactions as witness data is discounted.
+    "fee" : n,              (numeric) transaction fee in TDC (DEPRECATED)
+    "modifiedfee" : n,      (numeric) transaction fee with fee deltas used for mining priority (DEPRECATED)
+    "time" : n,             (numeric) local time transaction entered pool in seconds since 1 Jan 1970 GMT
+    "height" : n,           (numeric) block height when transaction entered pool
+    "descendantcount" : n,  (numeric) number of in-mempool descendant transactions (including this one)
+    "descendantsize" : n,   (numeric) virtual transaction size of in-mempool descendants (including this one)
+    "descendantfees" : n,   (numeric) modified fees (see above) of in-mempool descendants (including this one) (DEPRECATED)
+    "ancestorcount" : n,    (numeric) number of in-mempool ancestor transactions (including this one)
+    "ancestorsize" : n,     (numeric) virtual transaction size of in-mempool ancestors (including this one)
+    "ancestorfees" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one) (DEPRECATED)
+    "wtxid" : hash,         (string) hash of serialized transaction, including witness data
+    "fees" : {
+        "base" : n,         (numeric) transaction fee in TDC
+        "modified" : n,     (numeric) transaction fee with fee deltas used for mining priority in TDC
+        "ancestor" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one) in TDC
+        "descendant" : n,   (numeric) modified fees (see above) of in-mempool descendants (including this one) in TDC
+    }
+    "depends" : [           (array) unconfirmed transactions used as inputs for this transaction
+        "transactionid",    (string) parent transaction id
+       ... ]
+    "spentby" : [           (array) unconfirmed transactions spending outputs from this transaction
+        "transactionid",    (string) child transaction id
+       ... ]
+    "bip125-replaceable" : true|false,  (boolean) Whether this transaction could be replaced due to BIP125 (replace-by-fee)
+  }, ...
+}
+
+Examples:
+> tidecoin-cli getrawmempool true
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getrawmempool", "params": [true] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getchaintxstats ===
+getchaintxstats ( nblocks "blockhash" )
+
+Compute statistics about the total number and rate of transactions in the chain.
+
+Arguments:
+1. nblocks      (numeric, optional, default=one month) Size of the window in number of blocks
+2. blockhash    (string, optional, default=chain tip) The hash of the block that ends the window.
+
+Result:
+{
+  "time": xxxxx,                         (numeric) The timestamp for the final block in the window in UNIX format.
+  "txcount": xxxxx,                      (numeric) The total number of transactions in the chain up to that point.
+  "window_final_block_hash": "...",      (string) The hash of the final block in the window.
+  "window_block_count": xxxxx,           (numeric) Size of the window in number of blocks.
+  "window_tx_count": xxxxx,              (numeric) The number of transactions in the window. Only returned if "window_block_count" is > 0.
+  "window_interval": xxxxx,              (numeric) The elapsed time in the window in seconds. Only returned if "window_block_count" is > 0.
+  "txrate": x.xx,                        (numeric) The average rate of transactions per second in the window. Only returned if "window_interval" is > 0.
+}
+
+Examples:
+> tidecoin-cli getchaintxstats 
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getchaintxstats", "params": [2016] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== gettxoutsetinfo ===
+gettxoutsetinfo
+
+Returns statistics about the unspent transaction output set.
+Note this call may take some time.
+
+Result:
+{
+  "height":n,     (numeric) The current block height (index)
+  "bestblock": "hex",   (string) The hash of the block at the tip of the chain
+  "transactions": n,      (numeric) The number of transactions with unspent outputs
+  "txouts": n,            (numeric) The number of unspent transaction outputs
+  "bogosize": n,          (numeric) A meaningless metric for UTXO set size
+  "hash_serialized_2": "hash", (string) The serialized hash
+  "disk_size": n,         (numeric) The estimated size of the chainstate on disk
+  "total_amount": x.xxx          (numeric) The total amount
+}
+
+Examples:
+> tidecoin-cli gettxoutsetinfo 
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "gettxoutsetinfo", "params": [] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== gettxout ===
+gettxout "txid" n ( include_mempool )
+
+Returns details about an unspent transaction output.
+
+Arguments:
+1. txid               (string, required) The transaction id
+2. n                  (numeric, required) vout number
+3. include_mempool    (boolean, optional, default=true) Whether to include the mempool. Note that an unspent output that is spent in the mempool won't appear.
+
+Result:
+{
+  "bestblock":  "hash",    (string) The hash of the block at the tip of the chain
+  "confirmations" : n,       (numeric) The number of confirmations
+  "value" : x.xxx,           (numeric) The transaction value in TDC
+  "scriptPubKey" : {         (json object)
+     "asm" : "code",       (string) 
+     "hex" : "hex",        (string) 
+     "reqSigs" : n,          (numeric) Number of required signatures
+     "type" : "pubkeyhash", (string) The type, eg pubkeyhash
+     "addresses" : [          (array of string) array of tidecoin addresses
+        "address"     (string) tidecoin address
+        ,...
+     ]
+  },
+  "coinbase" : true|false   (boolean) Coinbase or not
+}
+
+Examples:
+
+Get unspent transactions
+> tidecoin-cli listunspent 
+
+View the details
+> tidecoin-cli gettxout "txid" 1
+
+As a JSON-RPC call
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "gettxout", "params": ["txid", 1] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== scantxoutset ===
+scantxoutset "action" [scanobjects,...]
+
+EXPERIMENTAL warning: this call may be removed or changed in future releases.
+
+Scans the unspent transaction output set for entries that match certain output descriptors.
+Examples of output descriptors are:
+    addr(<address>)                      Outputs whose scriptPubKey corresponds to the specified address (does not include P2PK)
+    raw(<hex script>)                    Outputs whose scriptPubKey equals the specified hex scripts
+    combo(<pubkey>)                      P2PK, P2PKH, P2WPKH, and P2SH-P2WPKH outputs for the given pubkey
+    pkh(<pubkey>)                        P2PKH outputs for the given pubkey
+    sh(multi(<n>,<pubkey>,<pubkey>,...)) P2SH-multisig outputs for the given threshold and pubkeys
+
+In the above, <pubkey> either refers to a fixed public key in hexadecimal notation, or to an xpub/xprv optionally followed by one
+or more path elements separated by "/", and optionally ending in "/*" (unhardened), or "/*'" or "/*h" (hardened) to specify all
+unhardened or hardened child keys.
+In the latter case, a range needs to be specified by below if different from 1000.
+For more information on output descriptors, see the documentation in the doc/descriptors.md file.
+
+Arguments:
+1. action                        (string, required) The action to execute
+                                 "start" for starting a scan
+                                 "abort" for aborting the current scan (returns true when abort was successful)
+                                 "status" for progress report (in %) of the current scan
+2. scanobjects                   (json array, required) Array of scan objects
+                                 Every scan object is either a string descriptor or an object:
+     [
+       "descriptor",             (string) An output descriptor
+       {                         (json object) An object with output descriptor and metadata
+         "desc": "str",          (string, required) An output descriptor
+         "range": n or [n,n],    (numeric or array, optional, default=1000) The range of HD chain indexes to explore (either end or [begin,end])
+       },
+       ...
+     ]
+
+Result:
+{
+  "unspents": [
+    {
+    "txid" : "transactionid",     (string) The transaction id
+    "vout": n,                    (numeric) the vout value
+    "scriptPubKey" : "script",    (string) the script key
+    "desc" : "descriptor",        (string) A specialized descriptor for the matched scriptPubKey
+    "amount" : x.xxx,             (numeric) The total amount in TDC of the unspent output
+    "height" : n,                 (numeric) Height of the unspent transaction output
+   }
+   ,...], 
+ "total_amount" : x.xxx,          (numeric) The total amount of all found unspent outputs in TDC
+]
+
+
+=== estimatesmartfee ===
+estimatesmartfee conf_target ( "estimate_mode" )
+
+Estimates the approximate fee per kilobyte needed for a transaction to begin
+confirmation within conf_target blocks if possible and return the number of blocks
+for which the estimate is valid. Uses virtual transaction size as defined
+in BIP 141 (witness data is discounted).
+
+Arguments:
+1. conf_target      (numeric, required) Confirmation target in blocks (1 - 1008)
+2. estimate_mode    (string, optional, default=CONSERVATIVE) The fee estimate mode.
+                    Whether to return a more conservative estimate which also satisfies
+                    a longer history. A conservative estimate potentially returns a
+                    higher feerate and is more likely to be sufficient for the desired
+                    target, but is not as responsive to short term drops in the
+                    prevailing fee market.  Must be one of:
+                    "UNSET"
+                    "ECONOMICAL"
+                    "CONSERVATIVE"
+
+Result:
+{
+  "feerate" : x.x,     (numeric, optional) estimate fee rate in TDC/kB
+  "errors": [ str... ] (json array of strings, optional) Errors encountered during processing
+  "blocks" : n         (numeric) block number where estimate was found
+}
+
+The request target will be clamped between 2 and the highest target
+fee estimation is able to return based on how long it has been running.
+An error is returned if not enough transactions and blocks
+have been observed to make an estimate for any number of blocks.
+
+Examples:
+> tidecoin-cli estimatesmartfee 6
+
+
+=== getblock ===
+getblock "blockhash" ( verbosity )
+
+If verbosity is 0, returns a string that is serialized, hex-encoded data for block 'hash'.
+If verbosity is 1, returns an Object with information about block <hash>.
+If verbosity is 2, returns an Object with information about block <hash> and information about each transaction. 
+
+Arguments:
+1. blockhash    (string, required) The block hash
+2. verbosity    (numeric, optional, default=1) 0 for hex-encoded data, 1 for a json object, and 2 for json object with transaction data
+
+Result (for verbosity = 0):
+"data"             (string) A string that is serialized, hex-encoded data for block 'hash'.
+
+Result (for verbosity = 1):
+{
+  "hash" : "hash",     (string) the block hash (same as provided)
+  "confirmations" : n,   (numeric) The number of confirmations, or -1 if the block is not on the main chain
+  "size" : n,            (numeric) The block size
+  "strippedsize" : n,    (numeric) The block size excluding witness data
+  "weight" : n           (numeric) The block weight as defined in BIP 141
+  "height" : n,          (numeric) The block height or index
+  "version" : n,         (numeric) The block version
+  "versionHex" : "00000000", (string) The block version formatted in hexadecimal
+  "merkleroot" : "xxxx", (string) The merkle root
+  "tx" : [               (array of string) The transaction ids
+     "transactionid"     (string) The transaction id
+     ,...
+  ],
+  "time" : ttt,          (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)
+  "mediantime" : ttt,    (numeric) The median block time in seconds since epoch (Jan 1 1970 GMT)
+  "nonce" : n,           (numeric) The nonce
+  "bits" : "1d00ffff", (string) The bits
+  "difficulty" : x.xxx,  (numeric) The difficulty
+  "chainwork" : "xxxx",  (string) Expected number of hashes required to produce the chain up to this block (in hex)
+  "nTx" : n,             (numeric) The number of transactions in the block.
+  "previousblockhash" : "hash",  (string) The hash of the previous block
+  "nextblockhash" : "hash"       (string) The hash of the next block
+}
+
+Result (for verbosity = 2):
+{
+  ...,                     Same output as verbosity = 1.
+  "tx" : [               (array of Objects) The transactions in the format of the getrawtransaction RPC. Different from verbosity = 1 "tx" result.
+         ,...
+  ],
+  ,...                     Same output as verbosity = 1.
+}
+
+Examples:
+> tidecoin-cli getblock "e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getblock", "params": ["e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getblockheader ===
+getblockheader "blockhash" ( verbose )
+
+If verbose is false, returns a string that is serialized, hex-encoded data for blockheader 'hash'.
+If verbose is true, returns an Object with information about blockheader <hash>.
+
+Arguments:
+1. blockhash    (string, required) The block hash
+2. verbose      (boolean, optional, default=true) true for a json object, false for the hex-encoded data
+
+Result (for verbose = true):
+{
+  "hash" : "hash",     (string) the block hash (same as provided)
+  "confirmations" : n,   (numeric) The number of confirmations, or -1 if the block is not on the main chain
+  "height" : n,          (numeric) The block height or index
+  "version" : n,         (numeric) The block version
+  "versionHex" : "00000000", (string) The block version formatted in hexadecimal
+  "merkleroot" : "xxxx", (string) The merkle root
+  "time" : ttt,          (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)
+  "mediantime" : ttt,    (numeric) The median block time in seconds since epoch (Jan 1 1970 GMT)
+  "nonce" : n,           (numeric) The nonce
+  "bits" : "1d00ffff", (string) The bits
+  "difficulty" : x.xxx,  (numeric) The difficulty
+  "chainwork" : "0000...1f3"     (string) Expected number of hashes required to produce the current chain (in hex)
+  "nTx" : n,             (numeric) The number of transactions in the block.
+  "previousblockhash" : "hash",  (string) The hash of the previous block
+  "nextblockhash" : "hash",      (string) The hash of the next block
+}
+
+Result (for verbose=false):
+"data"             (string) A string that is serialized, hex-encoded data for block 'hash'.
+
+Examples:
+> tidecoin-cli getblockheader "e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getblockheader", "params": ["e2acdf2dd19a702e5d12a925f1e984b01e47a933562ca893656d4afb38b44ee3"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getblockstats ===
+getblockstats hash_or_height ( stats )
+
+Compute per block statistics for a given window. All amounts are in satoshis.
+It won't work for some heights with pruning.
+It won't work without -txindex for utxo_size_inc, *fee or *feerate stats.
+
+Arguments:
+1. hash_or_height    (string or numeric, required) The block hash or height of the target block
+2. stats             (json array, optional, default=all values) Values to plot (see result below)
+     [
+       "height",     (string) Selected statistic
+       "time",       (string) Selected statistic
+       ...
+     ]
+
+Result:
+{                           (json object)
+  "avgfee": xxxxx,          (numeric) Average fee in the block
+  "avgfeerate": xxxxx,      (numeric) Average feerate (in satoshis per virtual byte)
+  "avgtxsize": xxxxx,       (numeric) Average transaction size
+  "blockhash": xxxxx,       (string) The block hash (to check for potential reorgs)
+  "feerate_percentiles": [  (array of numeric) Feerates at the 10th, 25th, 50th, 75th, and 90th percentile weight unit (in satoshis per virtual byte)
+      "10th_percentile_feerate",      (numeric) The 10th percentile feerate
+      "25th_percentile_feerate",      (numeric) The 25th percentile feerate
+      "50th_percentile_feerate",      (numeric) The 50th percentile feerate
+      "75th_percentile_feerate",      (numeric) The 75th percentile feerate
+      "90th_percentile_feerate",      (numeric) The 90th percentile feerate
+  ],
+  "height": xxxxx,          (numeric) The height of the block
+  "ins": xxxxx,             (numeric) The number of inputs (excluding coinbase)
+  "maxfee": xxxxx,          (numeric) Maximum fee in the block
+  "maxfeerate": xxxxx,      (numeric) Maximum feerate (in satoshis per virtual byte)
+  "maxtxsize": xxxxx,       (numeric) Maximum transaction size
+  "medianfee": xxxxx,       (numeric) Truncated median fee in the block
+  "mediantime": xxxxx,      (numeric) The block median time past
+  "mediantxsize": xxxxx,    (numeric) Truncated median transaction size
+  "minfee": xxxxx,          (numeric) Minimum fee in the block
+  "minfeerate": xxxxx,      (numeric) Minimum feerate (in satoshis per virtual byte)
+  "mintxsize": xxxxx,       (numeric) Minimum transaction size
+  "outs": xxxxx,            (numeric) The number of outputs
+  "subsidy": xxxxx,         (numeric) The block subsidy
+  "swtotal_size": xxxxx,    (numeric) Total size of all segwit transactions
+  "swtotal_weight": xxxxx,  (numeric) Total weight of all segwit transactions divided by segwit scale factor (4)
+  "swtxs": xxxxx,           (numeric) The number of segwit transactions
+  "time": xxxxx,            (numeric) The block time
+  "total_out": xxxxx,       (numeric) Total amount in all outputs (excluding coinbase and thus reward [ie subsidy + totalfee])
+  "total_size": xxxxx,      (numeric) Total size of all non-coinbase transactions
+  "total_weight": xxxxx,    (numeric) Total weight of all non-coinbase transactions divided by segwit scale factor (4)
+  "totalfee": xxxxx,        (numeric) The fee total
+  "txs": xxxxx,             (numeric) The number of transactions (excluding coinbase)
+  "utxo_increase": xxxxx,   (numeric) The increase/decrease in the number of unspent outputs
+  "utxo_size_inc": xxxxx,   (numeric) The increase/decrease in size for the utxo index (not discounting op_return and similar)
+}
+
+Examples:
+> tidecoin-cli getblockstats 1000 '["minfeerate","avgfeerate"]'
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getblockstats", "params": [1000 '["minfeerate","avgfeerate"]'] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getrawtransaction ===
+getrawtransaction "txid" ( verbose "blockhash" )
+
+Return the raw transaction data.
+
+By default this function only works for mempool transactions. When called with a blockhash
+argument, getrawtransaction will return the transaction if the specified block is available and
+the transaction is found in that block. When called without a blockhash argument, getrawtransaction
+will return the transaction if it is in the mempool, or if -txindex is enabled and the transaction
+is in a block in the blockchain.
+
+Hint: Use gettransaction for wallet transactions.
+
+If verbose is 'true', returns an Object with information about 'txid'.
+If verbose is 'false' or omitted, returns a string that is serialized, hex-encoded data for 'txid'.
+
+Arguments:
+1. txid         (string, required) The transaction id
+2. verbose      (boolean, optional, default=false) If false, return a string, otherwise return a json object
+3. blockhash    (string, optional) The block in which to look for the transaction
+
+Result (if verbose is not set or set to false):
+"data"      (string) The serialized, hex-encoded data for 'txid'
+
+Result (if verbose is set to true):
+{
+  "in_active_chain": b, (bool) Whether specified block is in the active chain or not (only present with explicit "blockhash" argument)
+  "hex" : "data",       (string) The serialized, hex-encoded data for 'txid'
+  "txid" : "id",        (string) The transaction id (same as provided)
+  "hash" : "id",        (string) The transaction hash (differs from txid for witness transactions)
+  "size" : n,             (numeric) The serialized transaction size
+  "vsize" : n,            (numeric) The virtual transaction size (differs from size for witness transactions)
+  "weight" : n,           (numeric) The transaction's weight (between vsize*4-3 and vsize*4)
+  "version" : n,          (numeric) The version
+  "locktime" : ttt,       (numeric) The lock time
+  "vin" : [               (array of json objects)
+     {
+       "txid": "id",    (string) The transaction id
+       "vout": n,         (numeric) 
+       "scriptSig": {     (json object) The script
+         "asm": "asm",  (string) asm
+         "hex": "hex"   (string) hex
+       },
+       "sequence": n      (numeric) The script sequence number
+       "txinwitness": ["hex", ...] (array of string) hex-encoded witness data (if any)
+     }
+     ,...
+  ],
+  "vout" : [              (array of json objects)
+     {
+       "value" : x.xxx,            (numeric) The value in TDC
+       "n" : n,                    (numeric) index
+       "scriptPubKey" : {          (json object)
+         "asm" : "asm",          (string) the asm
+         "hex" : "hex",          (string) the hex
+         "reqSigs" : n,            (numeric) The required sigs
+         "type" : "pubkeyhash",  (string) The type, eg 'pubkeyhash'
+         "addresses" : [           (json array of string)
+           "address"        (string) tidecoin address
+           ,...
+         ]
+       }
+     }
+     ,...
+  ],
+  "blockhash" : "hash",   (string) the block hash
+  "confirmations" : n,      (numeric) The confirmations
+  "blocktime" : ttt         (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)
+  "time" : ttt,             (numeric) Same as "blocktime"
+}
+
+Examples:
+> tidecoin-cli getrawtransaction "mytxid"
+> tidecoin-cli getrawtransaction "mytxid" true
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getrawtransaction", "params": ["mytxid", true] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+> tidecoin-cli getrawtransaction "mytxid" false "myblockhash"
+> tidecoin-cli getrawtransaction "mytxid" true "myblockhash"
+
+
+=== decoderawtransaction ===
+decoderawtransaction "hexstring" ( iswitness )
+
+Return a JSON object representing the serialized, hex-encoded transaction.
+
+Arguments:
+1. hexstring    (string, required) The transaction hex string
+2. iswitness    (boolean, optional, default=depends on heuristic tests) Whether the transaction hex is a serialized witness transaction.
+                If iswitness is not present, heuristic tests will be used in decoding.
+                If true, only witness deserialization will be tried.
+                If false, only non-witness deserialization will be tried.
+                This boolean should reflect whether the transaction has inputs
+                (e.g. fully valid, or on-chain transactions), if known by the caller.
+
+Result:
+{
+  "txid" : "id",        (string) The transaction id
+  "hash" : "id",        (string) The transaction hash (differs from txid for witness transactions)
+  "size" : n,             (numeric) The transaction size
+  "vsize" : n,            (numeric) The virtual transaction size (differs from size for witness transactions)
+  "weight" : n,           (numeric) The transaction's weight (between vsize*4 - 3 and vsize*4)
+  "version" : n,          (numeric) The version
+  "locktime" : ttt,       (numeric) The lock time
+  "vin" : [               (array of json objects)
+     {
+       "txid": "id",    (string) The transaction id
+       "vout": n,         (numeric) The output number
+       "scriptSig": {     (json object) The script
+         "asm": "asm",  (string) asm
+         "hex": "hex"   (string) hex
+       },
+       "txinwitness": ["hex", ...] (array of string) hex-encoded witness data (if any)
+       "sequence": n     (numeric) The script sequence number
+     }
+     ,...
+  ],
+  "vout" : [             (array of json objects)
+     {
+       "value" : x.xxx,            (numeric) The value in TDC
+       "n" : n,                    (numeric) index
+       "scriptPubKey" : {          (json object)
+         "asm" : "asm",          (string) the asm
+         "hex" : "hex",          (string) the hex
+         "reqSigs" : n,            (numeric) The required sigs
+         "type" : "pubkeyhash",  (string) The type, eg 'pubkeyhash'
+         "addresses" : [           (json array of string)
+           "12tvKAXCxZjSmdNbao16dKXC8tRWfcF5oc"   (string) tidecoin address
+           ,...
+         ]
+       }
+     }
+     ,...
+  ],
+}
+
+Examples:
+> tidecoin-cli decoderawtransaction "hexstring"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "decoderawtransaction", "params": ["hexstring"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== decodescript ===
+decodescript "hexstring"
+
+Decode a hex-encoded script.
+
+Arguments:
+1. hexstring    (string, required) the hex-encoded script
+
+Result:
+{
+  "asm":"asm",   (string) Script public key
+  "hex":"hex",   (string) hex-encoded public key
+  "type":"type", (string) The output type
+  "reqSigs": n,    (numeric) The required signatures
+  "addresses": [   (json array of string)
+     "address"     (string) tidecoin address
+     ,...
+  ],
+  "p2sh","address" (string) address of P2SH script wrapping this redeem script (not returned if the script is already a P2SH).
+}
+
+Examples:
+> tidecoin-cli decodescript "hexstring"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "decodescript", "params": ["hexstring"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== validateaddress ===
+validateaddress "address"
+
+Return information about the given tidecoin address.
+
+Arguments:
+1. address    (string, required) The tidecoin address to validate
+
+Result:
+{
+  "isvalid" : true|false,       (boolean) If the address is valid or not. If not, this is the only property returned.
+  "address" : "address",        (string) The tidecoin address validated
+  "scriptPubKey" : "hex",       (string) The hex-encoded scriptPubKey generated by the address
+  "isscript" : true|false,      (boolean) If the key is a script
+  "iswitness" : true|false,     (boolean) If the address is a witness address
+  "witness_version" : version   (numeric, optional) The version number of the witness program
+  "witness_program" : "hex"     (string, optional) The hex value of the witness program
+}
+
+Examples:
+> tidecoin-cli validateaddress "LEr4HnaefWYHbMGXcFp2Po1NPRUeIk8km2"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "validateaddress", "params": ["LEr4HnaefWYHbMGXcFp2Po1NPRUeIk8km2"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getmempoolentry ===
+getmempoolentry "txid"
+
+Returns mempool data for given transaction
+
+Arguments:
+1. txid    (string, required) The transaction id (must be in mempool)
+
+Result:
+{                           (json object)
+    "size" : n,             (numeric) virtual transaction size as defined in BIP 141. This is different from actual serialized size for witness transactions as witness data is discounted.
+    "fee" : n,              (numeric) transaction fee in TDC (DEPRECATED)
+    "modifiedfee" : n,      (numeric) transaction fee with fee deltas used for mining priority (DEPRECATED)
+    "time" : n,             (numeric) local time transaction entered pool in seconds since 1 Jan 1970 GMT
+    "height" : n,           (numeric) block height when transaction entered pool
+    "descendantcount" : n,  (numeric) number of in-mempool descendant transactions (including this one)
+    "descendantsize" : n,   (numeric) virtual transaction size of in-mempool descendants (including this one)
+    "descendantfees" : n,   (numeric) modified fees (see above) of in-mempool descendants (including this one) (DEPRECATED)
+    "ancestorcount" : n,    (numeric) number of in-mempool ancestor transactions (including this one)
+    "ancestorsize" : n,     (numeric) virtual transaction size of in-mempool ancestors (including this one)
+    "ancestorfees" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one) (DEPRECATED)
+    "wtxid" : hash,         (string) hash of serialized transaction, including witness data
+    "fees" : {
+        "base" : n,         (numeric) transaction fee in TDC
+        "modified" : n,     (numeric) transaction fee with fee deltas used for mining priority in TDC
+        "ancestor" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one) in TDC
+        "descendant" : n,   (numeric) modified fees (see above) of in-mempool descendants (including this one) in TDC
+    }
+    "depends" : [           (array) unconfirmed transactions used as inputs for this transaction
+        "transactionid",    (string) parent transaction id
+       ... ]
+    "spentby" : [           (array) unconfirmed transactions spending outputs from this transaction
+        "transactionid",    (string) child transaction id
+       ... ]
+    "bip125-replaceable" : true|false,  (boolean) Whether this transaction could be replaced due to BIP125 (replace-by-fee)
+}
+
+Examples:
+> tidecoin-cli getmempoolentry "mytxid"
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getmempoolentry", "params": ["mytxid"] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getrawmempool ===
+getrawmempool ( verbose )
+
+Returns all transaction ids in memory pool as a json array of string transaction ids.
+
+Hint: use getmempoolentry to fetch a specific transaction from the mempool.
+
+Arguments:
+1. verbose    (boolean, optional, default=false) True for a json object, false for array of transaction ids
+
+Result (for verbose = false):
+[                     (json array of string)
+  "transactionid"     (string) The transaction id
+  ,...
+]
+
+Result: (for verbose = true):
+{                           (json object)
+  "transactionid" : {       (json object)
+    "size" : n,             (numeric) virtual transaction size as defined in BIP 141. This is different from actual serialized size for witness transactions as witness data is discounted.
+    "fee" : n,              (numeric) transaction fee in TDC (DEPRECATED)
+    "modifiedfee" : n,      (numeric) transaction fee with fee deltas used for mining priority (DEPRECATED)
+    "time" : n,             (numeric) local time transaction entered pool in seconds since 1 Jan 1970 GMT
+    "height" : n,           (numeric) block height when transaction entered pool
+    "descendantcount" : n,  (numeric) number of in-mempool descendant transactions (including this one)
+    "descendantsize" : n,   (numeric) virtual transaction size of in-mempool descendants (including this one)
+    "descendantfees" : n,   (numeric) modified fees (see above) of in-mempool descendants (including this one) (DEPRECATED)
+    "ancestorcount" : n,    (numeric) number of in-mempool ancestor transactions (including this one)
+    "ancestorsize" : n,     (numeric) virtual transaction size of in-mempool ancestors (including this one)
+    "ancestorfees" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one) (DEPRECATED)
+    "wtxid" : hash,         (string) hash of serialized transaction, including witness data
+    "fees" : {
+        "base" : n,         (numeric) transaction fee in TDC
+        "modified" : n,     (numeric) transaction fee with fee deltas used for mining priority in TDC
+        "ancestor" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one) in TDC
+        "descendant" : n,   (numeric) modified fees (see above) of in-mempool descendants (including this one) in TDC
+    }
+    "depends" : [           (array) unconfirmed transactions used as inputs for this transaction
+        "transactionid",    (string) parent transaction id
+       ... ]
+    "spentby" : [           (array) unconfirmed transactions spending outputs from this transaction
+        "transactionid",    (string) child transaction id
+       ... ]
+    "bip125-replaceable" : true|false,  (boolean) Whether this transaction could be replaced due to BIP125 (replace-by-fee)
+  }, ...
+}
+
+Examples:
+> tidecoin-cli getrawmempool true
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getrawmempool", "params": [true] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== getchaintxstats ===
+getchaintxstats ( nblocks "blockhash" )
+
+Compute statistics about the total number and rate of transactions in the chain.
+
+Arguments:
+1. nblocks      (numeric, optional, default=one month) Size of the window in number of blocks
+2. blockhash    (string, optional, default=chain tip) The hash of the block that ends the window.
+
+Result:
+{
+  "time": xxxxx,                         (numeric) The timestamp for the final block in the window in UNIX format.
+  "txcount": xxxxx,                      (numeric) The total number of transactions in the chain up to that point.
+  "window_final_block_hash": "...",      (string) The hash of the final block in the window.
+  "window_block_count": xxxxx,           (numeric) Size of the window in number of blocks.
+  "window_tx_count": xxxxx,              (numeric) The number of transactions in the window. Only returned if "window_block_count" is > 0.
+  "window_interval": xxxxx,              (numeric) The elapsed time in the window in seconds. Only returned if "window_block_count" is > 0.
+  "txrate": x.xx,                        (numeric) The average rate of transactions per second in the window. Only returned if "window_interval" is > 0.
+}
+
+Examples:
+> tidecoin-cli getchaintxstats 
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getchaintxstats", "params": [2016] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== gettxoutsetinfo ===
+gettxoutsetinfo
+
+Returns statistics about the unspent transaction output set.
+Note this call may take some time.
+
+Result:
+{
+  "height":n,     (numeric) The current block height (index)
+  "bestblock": "hex",   (string) The hash of the block at the tip of the chain
+  "transactions": n,      (numeric) The number of transactions with unspent outputs
+  "txouts": n,            (numeric) The number of unspent transaction outputs
+  "bogosize": n,          (numeric) A meaningless metric for UTXO set size
+  "hash_serialized_2": "hash", (string) The serialized hash
+  "disk_size": n,         (numeric) The estimated size of the chainstate on disk
+  "total_amount": x.xxx          (numeric) The total amount
+}
+
+Examples:
+> tidecoin-cli gettxoutsetinfo 
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "gettxoutsetinfo", "params": [] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== gettxout ===
+gettxout "txid" n ( include_mempool )
+
+Returns details about an unspent transaction output.
+
+Arguments:
+1. txid               (string, required) The transaction id
+2. n                  (numeric, required) vout number
+3. include_mempool    (boolean, optional, default=true) Whether to include the mempool. Note that an unspent output that is spent in the mempool won't appear.
+
+Result:
+{
+  "bestblock":  "hash",    (string) The hash of the block at the tip of the chain
+  "confirmations" : n,       (numeric) The number of confirmations
+  "value" : x.xxx,           (numeric) The transaction value in TDC
+  "scriptPubKey" : {         (json object)
+     "asm" : "code",       (string) 
+     "hex" : "hex",        (string) 
+     "reqSigs" : n,          (numeric) Number of required signatures
+     "type" : "pubkeyhash", (string) The type, eg pubkeyhash
+     "addresses" : [          (array of string) array of tidecoin addresses
+        "address"     (string) tidecoin address
+        ,...
+     ]
+  },
+  "coinbase" : true|false   (boolean) Coinbase or not
+}
+
+Examples:
+
+Get unspent transactions
+> tidecoin-cli listunspent 
+
+View the details
+> tidecoin-cli gettxout "txid" 1
+
+As a JSON-RPC call
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "gettxout", "params": ["txid", 1] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
+=== scantxoutset ===
+scantxoutset "action" [scanobjects,...]
+
+EXPERIMENTAL warning: this call may be removed or changed in future releases.
+
+Scans the unspent transaction output set for entries that match certain output descriptors.
+Examples of output descriptors are:
+    addr(<address>)                      Outputs whose scriptPubKey corresponds to the specified address (does not include P2PK)
+    raw(<hex script>)                    Outputs whose scriptPubKey equals the specified hex scripts
+    combo(<pubkey>)                      P2PK, P2PKH, P2WPKH, and P2SH-P2WPKH outputs for the given pubkey
+    pkh(<pubkey>)                        P2PKH outputs for the given pubkey
+    sh(multi(<n>,<pubkey>,<pubkey>,...)) P2SH-multisig outputs for the given threshold and pubkeys
+
+In the above, <pubkey> either refers to a fixed public key in hexadecimal notation, or to an xpub/xprv optionally followed by one
+or more path elements separated by "/", and optionally ending in "/*" (unhardened), or "/*'" or "/*h" (hardened) to specify all
+unhardened or hardened child keys.
+In the latter case, a range needs to be specified by below if different from 1000.
+For more information on output descriptors, see the documentation in the doc/descriptors.md file.
+
+Arguments:
+1. action                        (string, required) The action to execute
+                                 "start" for starting a scan
+                                 "abort" for aborting the current scan (returns true when abort was successful)
+                                 "status" for progress report (in %) of the current scan
+2. scanobjects                   (json array, required) Array of scan objects
+                                 Every scan object is either a string descriptor or an object:
+     [
+       "descriptor",             (string) An output descriptor
+       {                         (json object) An object with output descriptor and metadata
+         "desc": "str",          (string, required) An output descriptor
+         "range": n or [n,n],    (numeric or array, optional, default=1000) The range of HD chain indexes to explore (either end or [begin,end])
+       },
+       ...
+     ]
+
+Result:
+{
+  "unspents": [
+    {
+    "txid" : "transactionid",     (string) The transaction id
+    "vout": n,                    (numeric) the vout value
+    "scriptPubKey" : "script",    (string) the script key
+    "desc" : "descriptor",        (string) A specialized descriptor for the matched scriptPubKey
+    "amount" : x.xxx,             (numeric) The total amount in TDC of the unspent output
+    "height" : n,                 (numeric) Height of the unspent transaction output
+   }
+   ,...], 
+ "total_amount" : x.xxx,          (numeric) The total amount of all found unspent outputs in TDC
+]
+
+
+=== estimatesmartfee ===
+estimatesmartfee conf_target ( "estimate_mode" )
+
+Estimates the approximate fee per kilobyte needed for a transaction to begin
+confirmation within conf_target blocks if possible and return the number of blocks
+for which the estimate is valid. Uses virtual transaction size as defined
+in BIP 141 (witness data is discounted).
+
+Arguments:
+1. conf_target      (numeric, required) Confirmation target in blocks (1 - 1008)
+2. estimate_mode    (string, optional, default=CONSERVATIVE) The fee estimate mode.
+                    Whether to return a more conservative estimate which also satisfies
+                    a longer history. A conservative estimate potentially returns a
+                    higher feerate and is more likely to be sufficient for the desired
+                    target, but is not as responsive to short term drops in the
+                    prevailing fee market.  Must be one of:
+                    "UNSET"
+                    "ECONOMICAL"
+                    "CONSERVATIVE"
+
+Result:
+{
+  "feerate" : x.x,     (numeric, optional) estimate fee rate in TDC/kB
+  "errors": [ str... ] (json array of strings, optional) Errors encountered during processing
+  "blocks" : n         (numeric) block number where estimate was found
+}
+
+The request target will be clamped between 2 and the highest target
+fee estimation is able to return based on how long it has been running.
+An error is returned if not enough transactions and blocks
+have been observed to make an estimate for any number of blocks.
+
+Examples:
+> tidecoin-cli estimatesmartfee 6
+
+
+=== getmininginfo ===
+getmininginfo
+
+Returns a json object containing mining-related information.
+Result:
+{
+  "blocks": nnn,             (numeric) The current block
+  "currentblockweight": nnn, (numeric, optional) The block weight of the last assembled block (only present if a block was ever assembled)
+  "currentblocktx": nnn,     (numeric, optional) The number of block transactions of the last assembled block (only present if a block was ever assembled)
+  "difficulty": xxx.xxxxx    (numeric) The current difficulty
+  "networkhashps": nnn,      (numeric) The network hashes per second
+  "pooledtx": n              (numeric) The size of the mempool
+  "chain": "xxxx",           (string) current network name as defined in BIP70 (main, test, regtest)
+  "warnings": "..."          (string) any network and blockchain warnings
+}
+
+Examples:
+> tidecoin-cli getmininginfo 
+> curl --user myusername --data-binary '{"jsonrpc": "1.0", "id":"curltest", "method": "getmininginfo", "params": [] }' -H 'content-type: text/plain;' http://127.0.0.1:9332/
+
+
