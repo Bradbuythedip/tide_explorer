@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  @apply bg-surface-0 text-slate-100 antialiased;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+/* Single source of truth for link color — violet brand, never emerald.
+   DIRECTIVE.md §4.1. */
+a {
+  @apply text-brand hover:text-brand-glow;
+  transition: color 120ms ease;
+}
+
+/* Monospace helper used for hex hashes, Falcon byte dumps, etc. */
+.mono {
+  @apply font-mono tabular-nums;
+}

@@ -162,7 +162,9 @@ CREATE TABLE IF NOT EXISTS inputs (
     txid            BYTEA NOT NULL REFERENCES transactions(txid) ON DELETE CASCADE,
     vin             INT NOT NULL,
     prev_txid       BYTEA NOT NULL,
-    prev_vout       INT NOT NULL,
+    -- BIGINT because coinbase inputs store 0xffffffff = 4294967295,
+    -- which overflows Postgres INT. See migration 002.
+    prev_vout       BIGINT NOT NULL,
     sequence        BIGINT NOT NULL,
     script_sig      BYTEA,
     -- Witness stack serialized as a length-prefixed blob of items:
