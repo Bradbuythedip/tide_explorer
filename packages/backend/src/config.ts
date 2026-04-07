@@ -21,6 +21,11 @@ const EnvSchema = z.object({
   /** Optional. If unset the backend uses a NoopCache and hits the node
    *  every time — fine for local dev, not fine for production. */
   REDIS_URL: z.string().url().optional(),
+
+  /** Required for /api/v1/address/:addr (reads indexer state). If
+   *  unset the address route is disabled with a 503. Other routes
+   *  don't touch Postgres. */
+  DATABASE_URL: z.string().optional(),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

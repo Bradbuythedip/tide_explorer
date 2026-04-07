@@ -2,6 +2,7 @@ import { TidecoinRpcClient } from "@prevblock/rpc-client";
 import { loadConfig } from "./config.js";
 import { buildServer } from "./server.js";
 import { createCache } from "./lib/cache.js";
+import { createIndexerDb } from "./lib/indexer-db.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -14,14 +15,16 @@ async function main(): Promise<void> {
   });
 
   const cache = await createCache(config.REDIS_URL);
+  const indexerDb = createIndexerDb(config.DATABASE_URL);
 
-  const app = await buildServer({ config, rpc, cache });
+  const app = await buildServer({ config, rpc, cache, indexerDb });
 
   const shutdown = async (signal: string) => {
     app.log.info({ signal }, "shutdown requested");
     try {
       await app.close();
       await cache.close();
+      if (indexerDb !== null) await indexerDb.close();
       await rpc.close();
       process.exit(0);
     } catch (err) {

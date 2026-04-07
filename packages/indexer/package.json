@@ -1,5 +1,5 @@
 {
-  "name": "@prevblock/backend",
+  "name": "@prevblock/indexer",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,19 +9,15 @@
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "clean": "rm -rf dist *.tsbuildinfo"
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "migrate": "node --loader tsx src/migrate.ts",
+    "verify": "../../scripts/verify-index.sh"
   },
   "dependencies": {
     "@prevblock/rpc-client": "workspace:*",
     "@prevblock/shared": "workspace:*",
-    "fastify": "^4.28.1",
-    "@fastify/cors": "^9.0.1",
-    "@fastify/helmet": "^11.1.1",
-    "@fastify/rate-limit": "^9.1.0",
-    "@fastify/sensible": "^5.6.0",
-    "pino": "^9.4.0",
     "pg": "^8.13.0",
-    "redis": "^4.7.0",
+    "pino": "^9.4.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
