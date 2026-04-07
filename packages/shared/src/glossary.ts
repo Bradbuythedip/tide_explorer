@@ -23,9 +23,15 @@ export interface GlossaryEntry {
   /** Optional longer explanation shown on click / on the glossary page. */
   long?: string;
   /** Citations — file path + optional line reference. */
-  sources: string[];
-  /** Related terms to render as links in the tooltip footer. */
-  see?: GlossaryTerm[];
+  sources: readonly string[];
+  /**
+   * Related term keys to render as links in the tooltip footer.
+   * Typed as plain strings rather than `GlossaryTerm[]` to avoid a
+   * circular type reference (GLOSSARY → GlossaryEntry → GlossaryTerm
+   * → keyof typeof GLOSSARY). The `<Term>` component validates each
+   * entry against the runtime GLOSSARY map and drops missing ones.
+   */
+  see?: readonly string[];
 }
 
 /**
@@ -200,4 +206,26 @@ export type GlossaryTerm = keyof typeof GLOSSARY;
 /** Runtime lookup used by the <Term> component. */
 export function lookupGlossary(term: GlossaryTerm): GlossaryEntry {
   return GLOSSARY[term];
+}
+
+/** True iff the given string is a valid glossary term key. */
+export function isGlossaryTerm(key: string): key is GlossaryTerm {
+  return Object.prototype.hasOwnProperty.call(GLOSSARY, key);
+}
+
+/**
+ * Resolve the `see` list on an entry into valid terms + dropped keys.
+ * Used by the `<Term>` component so a typo in a `see` array shows up
+ * in dev instead of silently rendering a broken link.
+ */
+export function resolveSeeAlso(
+  entry: GlossaryEntry,
+): { valid: GlossaryTerm[]; dropped: string[] } {
+  const valid: GlossaryTerm[] = [];
+  const dropped: string[] = [];
+  for (const key of entry.see ?? []) {
+    if (isGlossaryTerm(key)) valid.push(key);
+    else dropped.push(key);
+  }
+  return { valid, dropped };
 }
