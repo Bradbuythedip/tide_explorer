@@ -2,6 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "outputDirectory": "packages/frontend/.next",
-  "installCommand": "echo install handled in build script",
-  "buildCommand": "npm run build"
+  "installCommand": "npx --yes pnpm@9.12.0 install --no-frozen-lockfile",
+  "buildCommand": "npx --yes pnpm@9.12.0 --filter @prevblock/shared build && npx --yes pnpm@9.12.0 -C packages/frontend build"
 }
