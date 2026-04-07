@@ -16,12 +16,27 @@ the first explorer that actually knows what it's looking at.
 
 ## Status
 
-**Phase 0 (discovery) complete.** RPC surface captured, Falcon witness format
-nailed down from real mainnet bytes and source, spec amended where the v2
-design assumed things about Tidecoin that turned out to be wrong
-(see [`PHASE_0_RETRO.md`](PHASE_0_RETRO.md)).
+| Phase | What | State |
+|---|---|---|
+| 0 | Discovery: RPC + protocol docs + retro | **done** — see `PHASE_0_RETRO.md`, `docs/rpc-surface.md`, `docs/tidecoin-protocol.md` |
+| 1 | Backend skeleton, RPC client, classifier, cache | **shipped** (chunks A–F + retro) — see `PHASE_1_RETRO.md` |
+| 2 | Indexer + `/api/v1/address/:addr` | **shipped, unverified** — see `PHASE_2_RETRO.md`. Gated on `scripts/verify-index.sh` passing on a real DB. |
+| 2.1 | Hash-program consistency check, fee/subsidy from `validation.cpp`, LISTEN/NOTIFY, `/search` | **pending** the user pushing `validation.cpp` + a green verify run |
+| A | Frontend conceptual model: glossary, onboarding, NotFound diagnostics, color discipline | **pending go/no-go** — can run in parallel with Phase 2.1 against fixtures |
+| B | Frontend decoupling | pending |
+| C | "My Tidecoin" keystone (DIRECTIVE.md §1) | gated on Phase 2 verify-green |
+| D | Variable rewards (whale watch, comparison page, genesis page) | pending |
 
-**Phase 1 (rpc-client + backend skeleton)** in progress.
+## Get going
+
+See **[`RUNBOOK.md`](RUNBOOK.md)** for the exact command sequence to take
+this repo from clone → indexed → verified → backend hitting the live
+node, with pass/fail criteria at every step.
+
+The single most satisfying acceptance moment is in §7 step 4: hitting
+`/api/v1/block/0` and seeing prevblock correctly classify the genesis
+output as `p2pk_falcon` while the node's own classifier reports it as
+`nonstandard`.
 
 ## Repository layout
 
