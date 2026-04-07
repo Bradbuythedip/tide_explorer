@@ -11,6 +11,11 @@ const EnvSchema = z.object({
   TIDECOIN_RPC_PASSWORD: z.string().min(1),
   TIDECOIN_RPC_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
 
+  // Railway and Heroku-style platforms inject PORT automatically; we
+  // honor it before falling back to BACKEND_PORT, then 3001.
+  // BACKEND_HOST stays 0.0.0.0 in prod so the platform's load
+  // balancer can reach the bind.
+  PORT: z.coerce.number().int().min(1).max(65535).optional(),
   BACKEND_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   BACKEND_HOST: z.string().default("0.0.0.0"),
   LOG_LEVEL: z

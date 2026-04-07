@@ -35,8 +35,10 @@ async function main(): Promise<void> {
   process.on("SIGINT", () => void shutdown("SIGINT"));
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
+  // Honor Railway / Heroku PORT, fall back to BACKEND_PORT.
+  const port = config.PORT ?? config.BACKEND_PORT;
   try {
-    await app.listen({ host: config.BACKEND_HOST, port: config.BACKEND_PORT });
+    await app.listen({ host: config.BACKEND_HOST, port });
   } catch (err) {
     app.log.error({ err }, "failed to bind port");
     process.exit(1);

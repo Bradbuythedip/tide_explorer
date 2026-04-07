@@ -22,6 +22,7 @@ async function main(): Promise<void> {
     logger,
     pollIntervalMs: config.INDEXER_POLL_INTERVAL_MS,
     batchSize: config.INDEXER_BATCH_SIZE,
+    logEvery: config.INDEXER_LOG_EVERY,
   });
 
   const shutdown = async (signal: string) => {
