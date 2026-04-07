@@ -41,8 +41,9 @@ export default async function HomePage() {
       )}
 
       <nav className="mt-12 flex flex-wrap gap-4 text-sm">
-        <Link href="/block/0">Genesis</Link>
+        <Link href="/genesis">Genesis</Link>
         <Link href="/quantum">Quantum risk</Link>
+        <Link href="/richlist">Richlist</Link>
         <Link href="/glossary">Glossary</Link>
         <Link href="/threat-model">Threat model</Link>
       </nav>

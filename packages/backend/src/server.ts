@@ -13,6 +13,8 @@ import { registerBlockRoutes } from "./routes/block.js";
 import { registerTxRoutes } from "./routes/tx.js";
 import { registerMempoolRoutes } from "./routes/mempool.js";
 import { registerAddressRoutes } from "./routes/address.js";
+import { registerRichlistRoutes } from "./routes/richlist.js";
+import { registerQuantumRoutes } from "./routes/quantum.js";
 
 export interface BuildServerDeps {
   config: Config;
@@ -72,6 +74,8 @@ export async function buildServer(
   await registerTxRoutes(app);
   await registerMempoolRoutes(app);
   await registerAddressRoutes(app);
+  await registerRichlistRoutes(app);
+  await registerQuantumRoutes(app);
 
   return app;
 }
