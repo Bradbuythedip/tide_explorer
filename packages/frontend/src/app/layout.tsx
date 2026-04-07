@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Onboarding } from "@/components/Onboarding";
+import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import "./globals.css";
 
@@ -22,6 +23,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="flex min-h-screen flex-col">
         <Onboarding />
+        <Header />
         <div className="flex-1">{children}</div>
         <Footer />
       </body>

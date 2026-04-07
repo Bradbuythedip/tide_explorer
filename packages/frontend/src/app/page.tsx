@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getStatus } from "@/lib/api";
-import { SearchBar } from "@/components/SearchBar";
 
 export const dynamic = "force-dynamic";
 
@@ -9,20 +8,17 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
-      <header className="mb-10">
+      <header className="mb-12">
         <h1 className="text-4xl font-semibold tracking-tight text-slate-100">
-          prev<span className="text-brand">block</span>
-        </h1>
-        <p className="mt-2 max-w-2xl text-slate-400">
           The Tidecoin block explorer that knows every signature on chain is
-          Falcon-512 — including the genesis coinbase the node itself mislabels
-          as <span className="mono text-threat-bare">nonstandard</span>.
+          Falcon-512.
+        </h1>
+        <p className="mt-3 max-w-2xl text-slate-400">
+          Including the genesis coinbase the node itself mislabels as{" "}
+          <span className="mono text-threat-bare">nonstandard</span>. Search a
+          block height, txid, or address from the bar above.
         </p>
       </header>
-
-      <section className="mb-12">
-        <SearchBar />
-      </section>
 
       {status === null ? (
         <BackendDown />
