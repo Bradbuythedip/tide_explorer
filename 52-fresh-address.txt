@@ -1,4 +1,0 @@
-error code: -19
-error message:
-Wallet file not specified (must request wallet RPC through /wallet/<filename> uri-path).
-Try adding "-rpcwallet=<filename>" option to tidecoin-cli command line.
