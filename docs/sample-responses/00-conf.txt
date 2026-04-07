@@ -1,0 +1,40 @@
+# ===== FASTER SYNC SETTINGS =====
+
+# Increase max connections for more peers to pull from
+maxconnections=40
+
+# Increase database cache (in MB) - higher = faster sync
+# Set to 1/4 of your available RAM. 2048 for 8GB, 4096 for 16GB
+dbcache=2048
+
+# Increase the number of script verification threads
+# Set to your CPU core count minus 1
+par=4
+
+# Reduce bandwidth overhead during sync
+maxuploadtarget=0
+
+# Disable wallet during initial sync (optional, re-enable after)
+# Uncomment the line below for faster IBD
+# disablewallet=1
+
+# ===== ADDNODE LINES =====
+# Get these from explorer.tidecoin.org/network
+# Add any active nodes you see listed there, format:
+addnode=seed.tidecoin.org
+addnode=seed.tidecoin.co
+
+# Add any nodes from the explorer's AddNode list
+# addnode=IP:PORT
+# addnode=IP:PORT
+
+# ===== OPTIONAL PERFORMANCE =====
+
+# Use listen=0 during sync if you don't need incoming connections
+listen=0
+
+# Increase block download window
+maxorphantx=100
+
+# Faster block verification during IBD
+assumevalid=0
