@@ -1,0 +1,28 @@
+[Unit]
+Description=prevblock indexer (Tidecoin UTXO indexer for prevblock)
+Documentation=https://github.com/Bradbuythedip/tide_explorer
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=brad
+Group=brad
+WorkingDirectory=/home/brad/prevblock
+EnvironmentFile=/home/brad/prevblock/.env
+ExecStartPre=/usr/bin/pnpm --filter @prevblock/shared build
+ExecStart=/usr/bin/pnpm -C packages/indexer exec tsx src/index.ts
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/var/log/prevblock/indexer.log
+StandardError=append:/var/log/prevblock/indexer.log
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/brad/prevblock /var/log/prevblock
+
+[Install]
+WantedBy=multi-user.target

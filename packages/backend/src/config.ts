@@ -18,6 +18,16 @@ const EnvSchema = z.object({
     .default("info"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 
+  /**
+   * Comma-separated allowed origins for CORS.
+   *
+   * In dev: leave unset and CORS allows any origin (the Next dev
+   * server runs on a different port and uses rewrites anyway).
+   * In prod: set to "https://prevblock.com" so only the live
+   * frontend can call the API. nginx still terminates TLS in front.
+   */
+  CORS_ALLOWED_ORIGINS: z.string().optional(),
+
   /** Optional. If unset the backend uses a NoopCache and hits the node
    *  every time — fine for local dev, not fine for production. */
   REDIS_URL: z.string().url().optional(),

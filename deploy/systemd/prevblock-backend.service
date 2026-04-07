@@ -1,0 +1,32 @@
+[Unit]
+Description=prevblock backend (Fastify API for Tidecoin explorer)
+Documentation=https://github.com/Bradbuythedip/tide_explorer
+After=network.target postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=brad
+Group=brad
+WorkingDirectory=/home/brad/prevblock
+EnvironmentFile=/home/brad/prevblock/.env
+# Build shared+rpc-client first (idempotent), then start the backend
+# directly via tsx so we don't need a separate build step in the
+# unit. Switch to `node packages/backend/dist/index.js` once you've
+# wired a real production build.
+ExecStartPre=/usr/bin/pnpm --filter @prevblock/shared --filter @prevblock/rpc-client build
+ExecStart=/usr/bin/pnpm -C packages/backend exec tsx src/index.ts
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/prevblock/backend.log
+StandardError=append:/var/log/prevblock/backend.log
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/brad/prevblock /var/log/prevblock
+
+[Install]
+WantedBy=multi-user.target
