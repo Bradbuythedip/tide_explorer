@@ -6,11 +6,13 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "predev": "pnpm --filter @prevblock/shared --filter @prevblock/rpc-client build",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo",
-    "migrate": "node --loader tsx src/migrate.ts",
+    "premigrate": "pnpm --filter @prevblock/shared build",
+    "migrate": "tsx src/migrate.ts",
     "verify": "../../scripts/verify-index.sh"
   },
   "dependencies": {
