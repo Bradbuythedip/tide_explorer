@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getStatus } from "@/lib/api";
+import { SearchBar } from "@/components/SearchBar";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,7 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
-      <header className="mb-12">
+      <header className="mb-10">
         <h1 className="text-4xl font-semibold tracking-tight text-slate-100">
           prev<span className="text-brand">block</span>
         </h1>
@@ -18,6 +19,10 @@ export default async function HomePage() {
           as <span className="mono text-threat-bare">nonstandard</span>.
         </p>
       </header>
+
+      <section className="mb-12">
+        <SearchBar />
+      </section>
 
       {status === null ? (
         <BackendDown />
