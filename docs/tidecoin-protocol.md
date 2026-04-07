@@ -105,10 +105,30 @@ OP_PUSHDATA2 0x0382  <898 bytes Falcon pubkey>  OP_CHECKSIG
 ```
 
 Decoded scriptPubKey hex starts with `4d8203` (= `OP_PUSHDATA2` + length
-`0x0382 = 898`) and ends with `ac` (`OP_CHECKSIG`). Bitcoin Core's classifier
-sees an unfamiliar push length and reports `"type": "nonstandard"`. Our
-indexer's classifier MUST recognise this form and emit
-`script_type = 'p2pk_falcon'`. See [`11-genesis-block.json`](sample-responses/11-genesis-block.json).
+`0x0382 = 898`) and ends with `ac` (`OP_CHECKSIG`).
+
+**Tidecoin's own `Solver()` cannot recognize this output.** From
+[`source-extracts/script/standard.cpp:46`](source-extracts/script/standard.cpp):
+
+```cpp
+static bool MatchPayToPubkey(const CScript& script, valtype& pubkey) {
+    if (script.size() == CPubKey::PUBLIC_KEY_SIZE + 2 &&
+        script[0] == CPubKey::PUBLIC_KEY_SIZE &&    // expects 1-byte push len
+        script.back() == OP_CHECKSIG) { ... }
+```
+
+`PUBLIC_KEY_SIZE = 898`, which cannot fit in a single push-length byte —
+any 898-byte push must use `OP_PUSHDATA2`. So `script[0]` is `0x4d`
+(`OP_PUSHDATA2`), not 898, and the comparison **never** matches. Every
+bare-Falcon P2PK output on the chain (including genesis) falls through to
+`TX_NONSTANDARD` in the upstream classifier. That's why
+`getrawtransaction` reports `"type": "nonstandard"` for the genesis output
+in [`11-genesis-block.json`](sample-responses/11-genesis-block.json).
+
+**Indexer rule:** before falling through to `nonstandard`, additionally
+check for the pattern `4d 82 03 <898 bytes> ac` and emit
+`script_type = 'p2pk_falcon'`. This is functionality the node itself does
+not provide and is genuine value-add of the explorer.
 
 The genesis coinbase scriptSig contains the easter-egg headline:
 
