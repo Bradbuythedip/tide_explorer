@@ -1,30 +1,47 @@
-# Railway monorepo manifest.
+# Railway / Nixpacks build manifest.
 #
-# This file applies to ALL services in the Railway project. Per-service
-# settings (Root Directory, Build Command, Start Command, Watch Paths)
-# are configured in the Railway dashboard — see RAILWAY.md.
+# Applies to ALL services in the Railway project (backend + indexer
+# both use these phases). Per-service settings (Start Command,
+# Variables) live in the Railway dashboard.
 #
-# What's pinned here:
-#   - Node 20.x via Nixpacks (matches .nvmrc and the rest of the repo)
-#   - pnpm via corepack (no manual install step)
-#   - Frozen lockfile install at the workspace root
+# What this file does:
+#   1. Pins Node 20 via Nixpacks
+#   2. Uses npx pnpm@9.12.0 for install + workspace builds
+#      (avoids depending on a system pnpm version, same lesson
+#      learned on Vercel)
+#   3. Builds @prevblock/shared and @prevblock/rpc-client during
+#      the build phase, so both services have the compiled
+#      workspace deps available before their Start Command runs
+#   4. --no-frozen-lockfile because there's no pnpm-lock.yaml in
+#      the repo yet (Brad's local commit never landed); pnpm will
+#      regenerate it on first install
 #
-# Railway picks Nixpacks automatically when it sees pnpm-workspace.yaml,
-# so the only reason this file exists is to make the Node + pnpm version
-# explicit and to share the install step across all services.
+# Brad's per-service dashboard settings should leave Build Command
+# and Install Command BLANK, and only set the Start Command:
+#
+#   prevblock-backend Start Command:
+#     npx --yes pnpm@9.12.0 -C packages/backend exec tsx src/index.ts
+#
+#   prevblock-indexer Start Command:
+#     npx --yes pnpm@9.12.0 -C packages/indexer exec tsx src/migrate.ts && \
+#     npx --yes pnpm@9.12.0 -C packages/indexer exec tsx src/index.ts
 
 [build]
 builder = "nixpacks"
-
-[build.nixpacksConfig]
-providers = ["node"]
 
 [build.nixpacksConfig.variables]
 NODE_VERSION = "20"
 NPM_CONFIG_PRODUCTION = "false"
 
 [build.nixpacksConfig.phases.setup]
-nixPkgs = ["nodejs_20", "pnpm-9_x"]
+nixPkgs = ["nodejs_20"]
 
 [build.nixpacksConfig.phases.install]
-cmds = ["pnpm install --frozen-lockfile"]
+cmds = [
+  "npx --yes pnpm@9.12.0 install --no-frozen-lockfile"
+]
+
+[build.nixpacksConfig.phases.build]
+cmds = [
+  "npx --yes pnpm@9.12.0 --filter @prevblock/shared --filter @prevblock/rpc-client build"
+]
