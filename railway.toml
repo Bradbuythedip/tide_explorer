@@ -1,47 +1,11 @@
-# Railway / Nixpacks build manifest.
+# Railway project config.
 #
-# Applies to ALL services in the Railway project (backend + indexer
-# both use these phases). Per-service settings (Start Command,
-# Variables) live in the Railway dashboard.
-#
-# What this file does:
-#   1. Pins Node 20 via Nixpacks
-#   2. Uses npx pnpm@9.12.0 for install + workspace builds
-#      (avoids depending on a system pnpm version, same lesson
-#      learned on Vercel)
-#   3. Builds @prevblock/shared and @prevblock/rpc-client during
-#      the build phase, so both services have the compiled
-#      workspace deps available before their Start Command runs
-#   4. --no-frozen-lockfile because there's no pnpm-lock.yaml in
-#      the repo yet (Brad's local commit never landed); pnpm will
-#      regenerate it on first install
-#
-# Brad's per-service dashboard settings should leave Build Command
-# and Install Command BLANK, and only set the Start Command:
-#
-#   prevblock-backend Start Command:
-#     npx --yes pnpm@9.12.0 -C packages/backend exec tsx src/index.ts
-#
-#   prevblock-indexer Start Command:
-#     npx --yes pnpm@9.12.0 -C packages/indexer exec tsx src/migrate.ts && \
-#     npx --yes pnpm@9.12.0 -C packages/indexer exec tsx src/index.ts
+# Most of the Nixpacks configuration lives in nixpacks.toml at the
+# repo root because Railway was silently ignoring the nested
+# build.nixpacksConfig form. railway.toml just tells Railway to use
+# nixpacks as the builder (which is the default but we make it
+# explicit) and any future Railway-specific options (deploy regions,
+# replica counts, etc) would go here.
 
 [build]
 builder = "nixpacks"
-
-[build.nixpacksConfig.variables]
-NODE_VERSION = "20"
-NPM_CONFIG_PRODUCTION = "false"
-
-[build.nixpacksConfig.phases.setup]
-nixPkgs = ["nodejs_20"]
-
-[build.nixpacksConfig.phases.install]
-cmds = [
-  "npx --yes pnpm@9.12.0 install --no-frozen-lockfile"
-]
-
-[build.nixpacksConfig.phases.build]
-cmds = [
-  "npx --yes pnpm@9.12.0 --filter @prevblock/shared --filter @prevblock/rpc-client build"
-]
