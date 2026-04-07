@@ -7,6 +7,9 @@ import { TidecoinRpcClient } from "@prevblock/rpc-client";
 import type { Config } from "./config.js";
 import { registerStatusRoutes } from "./routes/status.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerBlockRoutes } from "./routes/block.js";
+import { registerTxRoutes } from "./routes/tx.js";
+import { registerMempoolRoutes } from "./routes/mempool.js";
 
 export interface BuildServerDeps {
   config: Config;
@@ -58,6 +61,9 @@ export async function buildServer(
 
   await registerHealthRoutes(app);
   await registerStatusRoutes(app);
+  await registerBlockRoutes(app);
+  await registerTxRoutes(app);
+  await registerMempoolRoutes(app);
 
   return app;
 }

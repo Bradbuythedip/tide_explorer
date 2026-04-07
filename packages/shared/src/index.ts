@@ -11,3 +11,4 @@
 export * from "./tidecoin.js";
 export * from "./amount.js";
 export * from "./script-types.js";
+export * from "./classify-script.js";
