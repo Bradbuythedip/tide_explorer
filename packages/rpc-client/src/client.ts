@@ -159,28 +159,45 @@ export class TidecoinRpcClient {
     );
   }
 
-  getRawMempool(verbose: boolean) {
-    const schema = verbose
-      ? z.record(
-          z.object({
-            size: z.number().int(),
-            fee: z.number(),
-            modifiedfee: z.number(),
-            time: z.number().int(),
-            height: z.number().int(),
-            descendantcount: z.number().int(),
-            descendantsize: z.number().int(),
-            descendantfees: z.number(),
-            ancestorcount: z.number().int(),
-            ancestorsize: z.number().int(),
-            ancestorfees: z.number(),
-            wtxid: z.string(),
-            depends: z.array(z.string()),
-            spentby: z.array(z.string()),
-          }),
-        )
-      : z.array(z.string());
-    return this.call("getrawmempool", [verbose], schema);
+  /** `getrawmempool false` — just the txid list. */
+  getRawMempoolTxids() {
+    return this.call("getrawmempool", [false], z.array(z.string()));
+  }
+
+  /** `getrawmempool true` — verbose entries keyed by txid. */
+  getRawMempoolVerbose() {
+    return this.call(
+      "getrawmempool",
+      [true],
+      z.record(
+        z.object({
+          size: z.number().int(),
+          fee: z.number(),
+          modifiedfee: z.number(),
+          time: z.number().int(),
+          height: z.number().int(),
+          descendantcount: z.number().int(),
+          descendantsize: z.number().int(),
+          descendantfees: z.number(),
+          ancestorcount: z.number().int(),
+          ancestorsize: z.number().int(),
+          ancestorfees: z.number(),
+          wtxid: z.string(),
+          depends: z.array(z.string()),
+          spentby: z.array(z.string()),
+        }),
+      ),
+    );
+  }
+
+  /**
+   * Compatibility shim — old callers passed a boolean. New code
+   * should use getRawMempoolTxids() / getRawMempoolVerbose() directly.
+   */
+  getRawMempool(verbose: false): ReturnType<TidecoinRpcClient["getRawMempoolTxids"]>;
+  getRawMempool(verbose: true): ReturnType<TidecoinRpcClient["getRawMempoolVerbose"]>;
+  getRawMempool(verbose: boolean): Promise<unknown> {
+    return verbose ? this.getRawMempoolVerbose() : this.getRawMempoolTxids();
   }
 
   // -------- escape hatch for one-off calls --------
