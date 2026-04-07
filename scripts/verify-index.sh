@@ -88,18 +88,34 @@ fi
 pass "B: $SAMPLE_SIZE spot-checks clean"
 
 # ---- C. UTXO supply sanity -----------------------------------------------
-DB_SUPPLY=$($PSQL -c "SELECT COALESCE(SUM(value_sats), 0)::text FROM prevblock.outputs WHERE spent_by_txid IS NULL;")
-NODE_SUPPLY_TDC=$(rpc gettxoutsetinfo | jq -r '.total_amount')
-# Convert node supply to sats without float loss:
-NODE_SUPPLY=$(python3 -c "
+# Only meaningful when the indexer has caught up to the node tip.
+# `gettxoutsetinfo` always reports the node's CURRENT UTXO set, not the
+# historical one at our last_indexed_height — so any comparison against
+# an in-progress indexer is apples-to-oranges and will always fail.
+#
+# Policy: if the indexer is within 6 blocks of tip, run the check. If
+# it's further behind, skip with a SKIP marker and tell the operator
+# why. This preserves the Phase 2 gate semantic (per DIRECTIVE.md §10:
+# no personal UI numbers ship until verify is green) without producing
+# noise during catch-up.
+
+BEHIND=$(( NODE_HEIGHT - LAST_INDEXED ))
+if [ "$BEHIND" -gt 6 ]; then
+  echo "SKIP: C: indexer is $BEHIND blocks behind tip; supply comparison is only valid at tip. Re-run when catch-up completes."
+else
+  DB_SUPPLY=$($PSQL -c "SELECT COALESCE(SUM(value_sats), 0)::text FROM prevblock.outputs WHERE spent_by_txid IS NULL;")
+  NODE_SUPPLY_TDC=$(rpc gettxoutsetinfo | jq -r '.total_amount')
+  # Convert node supply to sats without float loss:
+  NODE_SUPPLY=$(python3 -c "
 from decimal import Decimal
 print(int(Decimal('$NODE_SUPPLY_TDC') * Decimal(10**8)))
 ")
 
-if [ "$DB_SUPPLY" != "$NODE_SUPPLY" ]; then
-  fail "C: UTXO supply mismatch db=$DB_SUPPLY node=$NODE_SUPPLY (diff $((DB_SUPPLY - NODE_SUPPLY)) sats)"
+  if [ "$DB_SUPPLY" != "$NODE_SUPPLY" ]; then
+    fail "C: UTXO supply mismatch db=$DB_SUPPLY node=$NODE_SUPPLY (diff $((DB_SUPPLY - NODE_SUPPLY)) sats)"
+  fi
+  pass "C: UTXO supply = $DB_SUPPLY sats matches node exactly"
 fi
-pass "C: UTXO supply = $DB_SUPPLY sats matches node exactly"
 
 # ---- D. script-type invariants -------------------------------------------
 BARE_UNREVEALED=$($PSQL -c "
