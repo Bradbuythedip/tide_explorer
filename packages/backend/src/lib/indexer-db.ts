@@ -15,6 +15,8 @@ import { formatTdcAmount } from "@prevblock/shared";
 
 export interface IndexerDb {
   getAddressSummary(address: string): Promise<AddressSummary | null>;
+  getRichlist(minSats: bigint, limit: number): Promise<RichlistResult>;
+  getQuantumSupply(): Promise<QuantumSupply>;
   close(): Promise<void>;
 }
 
@@ -48,6 +50,81 @@ export interface UnspentOutput {
   scriptType: string;
   hashProtected: boolean;
   pubkeyRevealedAtHeight: number | null;
+}
+
+export interface RichlistEntry {
+  rank: number;
+  address: string;
+  balanceSats: string;
+  balanceTdc: string;
+  utxoCount: number;
+  /**
+   * Per-entry three-bucket Falcon partition. Lets the UI render
+   * a stacked-bar next to each row showing how exposed this whale
+   * actually is.
+   */
+  hashProtectedSats: string;
+  pubkeyExposedSats: string;
+  bareP2pkSats: string;
+}
+
+export interface RichlistResult {
+  /** Minimum balance threshold the query was run with, in sats. */
+  minSats: string;
+  /** Total number of addresses meeting the threshold. May be larger
+   *  than entries.length if `limit` truncated. */
+  totalAddresses: number;
+  /** Sum of all balances meeting the threshold. */
+  totalSats: string;
+  /** Sum of UNFILTERED supply for context (i.e. all UTXOs in the
+   *  indexer regardless of address). Lets the UI compute the
+   *  "richlist holds X% of supply" headline. */
+  supplyTotalSats: string;
+  entries: RichlistEntry[];
+}
+
+/**
+ * Three-bucket Falcon partition over the entire UTXO set.
+ *
+ * Bucket definitions (DIRECTIVE.md §0 amendment #3,
+ * docs/tidecoin-protocol.md §4):
+ *
+ *   hashProtected
+ *     pubkey_revealed_at_height IS NULL AND
+ *     script_type IN (p2pkh_falcon, p2wpkh_falcon, p2wsh_falcon, p2sh)
+ *
+ *   pubkeyExposed
+ *     pubkey_revealed_at_height IS NOT NULL AND
+ *     script_type IN (p2pkh_falcon, p2wpkh_falcon, p2wsh_falcon, p2sh)
+ *
+ *   bareP2pk
+ *     script_type = p2pk_falcon (the genesis form; the upstream
+ *     Solver blind spot — see docs/tidecoin-protocol.md §3.1)
+ *
+ *   unclassified
+ *     anything else (op_return, witness_unknown, nonstandard).
+ *     Always small; tracked separately so the buckets sum to the
+ *     total UTXO supply exactly.
+ */
+export interface QuantumSupply {
+  totalSats: string;
+  totalTdc: string;
+  hashProtectedSats: string;
+  hashProtectedTdc: string;
+  pubkeyExposedSats: string;
+  pubkeyExposedTdc: string;
+  bareP2pkSats: string;
+  bareP2pkTdc: string;
+  unclassifiedSats: string;
+  unclassifiedTdc: string;
+  /** Indexer height at the moment the aggregate was computed. */
+  asOfHeight: number;
+  /** True iff the indexer has caught up to within 6 blocks of tip,
+   *  meaning the numbers are real. False during catch-up; the UI
+   *  shows a "still indexing" banner instead of fake fractions. */
+  isAtTip: boolean;
+  /** Distance from tip at the time of the query, in blocks. */
+  blocksBehindTip: number;
 }
 
 class PgIndexerDb implements IndexerDb {
@@ -149,6 +226,141 @@ class PgIndexerDb implements IndexerDb {
       utxoCount,
       pubkeyEverRevealed: row.pubkey_ever_revealed ?? false,
       utxos,
+    };
+  }
+
+  async getRichlist(minSats: bigint, limit: number): Promise<RichlistResult> {
+    // Two queries: a header (count + total + supply) and the page.
+    // The page query group-bys address with the same per-address
+    // partition we already produce for /address/:addr, so the UI
+    // can stack-bar each row without a second round-trip.
+    const header = await this.pool.query<{
+      total_addresses: string;
+      total_sats: string;
+      supply_total_sats: string;
+    }>(
+      `WITH agg AS (
+         SELECT address, SUM(value_sats) AS bal
+           FROM prevblock.outputs
+          WHERE address IS NOT NULL AND spent_by_txid IS NULL
+          GROUP BY address
+       )
+       SELECT
+         (SELECT COUNT(*)::text FROM agg WHERE bal >= $1::numeric) AS total_addresses,
+         (SELECT COALESCE(SUM(bal), 0)::text FROM agg WHERE bal >= $1::numeric) AS total_sats,
+         (SELECT COALESCE(SUM(value_sats), 0)::text
+            FROM prevblock.outputs
+           WHERE spent_by_txid IS NULL) AS supply_total_sats`,
+      [minSats.toString()],
+    );
+
+    const headerRow = header.rows[0]!;
+
+    const pageRows = await this.pool.query<{
+      address: string;
+      balance_sats: string;
+      utxo_count: string;
+      hash_protected_sats: string;
+      pubkey_exposed_sats: string;
+      bare_p2pk_sats: string;
+    }>(
+      `SELECT
+         address,
+         SUM(value_sats)::text AS balance_sats,
+         COUNT(*)::text AS utxo_count,
+         COALESCE(SUM(CASE
+           WHEN pubkey_revealed_at_height IS NULL
+             AND script_type IN ('p2pkh_falcon','p2wpkh_falcon','p2wsh_falcon','p2sh')
+           THEN value_sats ELSE 0 END), 0)::text AS hash_protected_sats,
+         COALESCE(SUM(CASE
+           WHEN pubkey_revealed_at_height IS NOT NULL
+             AND script_type IN ('p2pkh_falcon','p2wpkh_falcon','p2wsh_falcon','p2sh')
+           THEN value_sats ELSE 0 END), 0)::text AS pubkey_exposed_sats,
+         COALESCE(SUM(CASE
+           WHEN script_type = 'p2pk_falcon'
+           THEN value_sats ELSE 0 END), 0)::text AS bare_p2pk_sats
+       FROM prevblock.outputs
+       WHERE address IS NOT NULL AND spent_by_txid IS NULL
+       GROUP BY address
+       HAVING SUM(value_sats) >= $1::numeric
+       ORDER BY balance_sats DESC
+       LIMIT $2`,
+      [minSats.toString(), limit],
+    );
+
+    const entries: RichlistEntry[] = pageRows.rows.map((r, i) => ({
+      rank: i + 1,
+      address: r.address,
+      balanceSats: r.balance_sats,
+      balanceTdc: formatTdcAmount(BigInt(r.balance_sats)),
+      utxoCount: Number(r.utxo_count),
+      hashProtectedSats: r.hash_protected_sats,
+      pubkeyExposedSats: r.pubkey_exposed_sats,
+      bareP2pkSats: r.bare_p2pk_sats,
+    }));
+
+    return {
+      minSats: minSats.toString(),
+      totalAddresses: Number(headerRow.total_addresses),
+      totalSats: headerRow.total_sats,
+      supplyTotalSats: headerRow.supply_total_sats,
+      entries,
+    };
+  }
+
+  async getQuantumSupply(): Promise<QuantumSupply> {
+    // Single aggregate query — uses the partial index
+    // outputs_unspent_partition_idx for fast scan of just the
+    // unspent UTXOs.
+    const row = await this.pool.query<{
+      hash_protected: string;
+      pubkey_exposed: string;
+      bare_p2pk: string;
+      unclassified: string;
+      total: string;
+      as_of_height: string;
+    }>(
+      `SELECT
+         COALESCE(SUM(CASE
+           WHEN pubkey_revealed_at_height IS NULL
+             AND script_type IN ('p2pkh_falcon','p2wpkh_falcon','p2wsh_falcon','p2sh')
+           THEN value_sats ELSE 0 END), 0)::text AS hash_protected,
+         COALESCE(SUM(CASE
+           WHEN pubkey_revealed_at_height IS NOT NULL
+             AND script_type IN ('p2pkh_falcon','p2wpkh_falcon','p2wsh_falcon','p2sh')
+           THEN value_sats ELSE 0 END), 0)::text AS pubkey_exposed,
+         COALESCE(SUM(CASE
+           WHEN script_type = 'p2pk_falcon'
+           THEN value_sats ELSE 0 END), 0)::text AS bare_p2pk,
+         COALESCE(SUM(CASE
+           WHEN script_type IN ('op_return','witness_unknown','nonstandard')
+           THEN value_sats ELSE 0 END), 0)::text AS unclassified,
+         COALESCE(SUM(value_sats), 0)::text AS total,
+         (SELECT v::text FROM prevblock.chain_state
+           WHERE k='last_indexed_height') AS as_of_height
+       FROM prevblock.outputs
+       WHERE spent_by_txid IS NULL`,
+    );
+
+    const r = row.rows[0]!;
+    const asOfHeight = Number.parseInt(r.as_of_height ?? "-1", 10);
+    return {
+      totalSats: r.total,
+      totalTdc: formatTdcAmount(BigInt(r.total)),
+      hashProtectedSats: r.hash_protected,
+      hashProtectedTdc: formatTdcAmount(BigInt(r.hash_protected)),
+      pubkeyExposedSats: r.pubkey_exposed,
+      pubkeyExposedTdc: formatTdcAmount(BigInt(r.pubkey_exposed)),
+      bareP2pkSats: r.bare_p2pk,
+      bareP2pkTdc: formatTdcAmount(BigInt(r.bare_p2pk)),
+      unclassifiedSats: r.unclassified,
+      unclassifiedTdc: formatTdcAmount(BigInt(r.unclassified)),
+      asOfHeight,
+      // The route layer fills these in by comparing against the
+      // node tip; we don't want indexer-db to know about the RPC
+      // client. Default to false here.
+      isAtTip: false,
+      blocksBehindTip: -1,
     };
   }
 }
