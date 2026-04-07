@@ -256,6 +256,12 @@ class PgIndexerDb implements IndexerDb {
 
     const headerRow = header.rows[0]!;
 
+    // CRITICAL: ORDER BY must use the raw numeric SUM, not the text-cast
+    // alias. Postgres ORDER BY of a TEXT column sorts lexicographically,
+    // so '999...' comes after '1000...' alphabetically and the richlist
+    // looks shuffled. We compute SUM(value_sats) twice (once for ORDER
+    // BY, once cast for output); the planner deduplicates this so the
+    // double mention is free.
     const pageRows = await this.pool.query<{
       address: string;
       balance_sats: string;
@@ -283,7 +289,7 @@ class PgIndexerDb implements IndexerDb {
        WHERE address IS NOT NULL AND spent_by_txid IS NULL
        GROUP BY address
        HAVING SUM(value_sats) >= $1::numeric
-       ORDER BY balance_sats DESC
+       ORDER BY SUM(value_sats) DESC
        LIMIT $2`,
       [minSats.toString(), limit],
     );
