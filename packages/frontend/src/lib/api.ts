@@ -188,3 +188,49 @@ export interface BlockTxOut {
 export function getBlock(idOrHeight: string): Promise<BlockSummary | null> {
   return get<BlockSummary>(`/api/v1/block/${idOrHeight}`);
 }
+
+// ---- tx ----
+
+export interface TxDetail extends BlockTx {
+  blockhash: string | null;
+  confirmations: number | null;
+  time: number | null;
+}
+
+export function getTx(txid: string, blockhash?: string): Promise<TxDetail | null> {
+  const qs = blockhash ? `?blockhash=${blockhash}` : "";
+  return get<TxDetail>(`/api/v1/tx/${txid}${qs}`);
+}
+
+// ---- address ----
+
+export interface AddressUtxo {
+  txid: string;
+  vout: number;
+  valueSats: string;
+  valueTdc: string;
+  scriptType: string;
+  hashProtected: boolean;
+  pubkeyRevealedAtHeight: number | null;
+}
+
+export interface AddressSummary {
+  address: string;
+  balanceSats: string;
+  balanceTdc: string;
+  partition: {
+    hashProtectedSats: string;
+    hashProtectedTdc: string;
+    pubkeyExposedSats: string;
+    pubkeyExposedTdc: string;
+    bareP2pkSats: string;
+    bareP2pkTdc: string;
+  };
+  utxoCount: number;
+  pubkeyEverRevealed: boolean;
+  utxos: AddressUtxo[];
+}
+
+export function getAddress(addr: string): Promise<AddressSummary | null> {
+  return get<AddressSummary>(`/api/v1/address/${addr}`);
+}

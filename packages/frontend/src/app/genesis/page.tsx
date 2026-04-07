@@ -22,13 +22,13 @@ export default async function GenesisPage() {
       <header className="mb-10">
         <p className="text-sm uppercase tracking-wider text-brand-glow">Genesis</p>
         <h1 className="mt-2 text-3xl font-semibold text-slate-100">
-          Block 0 — December 27, 2020
+          Block 0 — mined December 27, 2020
         </h1>
         <p className="mt-3 text-slate-400">
           Tidecoin&apos;s first block. A bare <Term name="p2pk-falcon" /> output
-          paying 50 TDC to a Falcon-512 public key, signed with a coinbase
-          scriptSig that quotes a December 9, 2020 IEEE Spectrum headline about
-          photonic quantum computing.
+          paying 50 TDC to a Falcon-512 public key, with a coinbase scriptSig
+          that quotes an IEEE Spectrum article from December 9, 2020 about
+          photonic quantum computing supremacy.
         </p>
       </header>
 
@@ -36,7 +36,7 @@ export default async function GenesisPage() {
 
       <section className="mt-10">
         <h2 className="text-xs uppercase tracking-wider text-slate-500">
-          The headline
+          The headline embedded in the coinbase
         </h2>
         <blockquote className="mt-3 rounded-lg border-l-4 border-brand bg-surface-1 p-6 text-slate-200">
           <p className="text-lg italic">
@@ -44,18 +44,49 @@ export default async function GenesisPage() {
             &lsquo;Supremacy&rsquo; Over Supercomputers.
           </p>
           <footer className="mt-3 text-xs text-slate-500">
-            Embedded ASCII in the genesis coinbase scriptSig. Decoded from{" "}
-            <span className="mono">
+            Decoded from the genesis coinbase scriptSig:{" "}
+            <span className="mono break-all">
               04ffff001d01044c61737065637472756d2e696565652e6f72672030392f4465632f3230323020…
             </span>
           </footer>
         </blockquote>
-        <p className="mt-4 text-sm text-slate-400">
-          On the same day Bitcoin&apos;s genesis quoted a UK bank bailout —
-          January 3, 2009 — Tidecoin chose a story about a Chinese lab claiming
-          quantum supremacy on a photonic device. The framing was deliberate:
-          this was launched as a chain for the moment when a quantum computer
-          might actually matter.
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-surface-3 bg-surface-1 p-4">
+            <div className="text-xs uppercase tracking-wider text-slate-500">
+              Article date
+            </div>
+            <div className="mt-1 text-slate-200">December 9, 2020</div>
+            <div className="mt-2 text-xs text-slate-500">
+              IEEE Spectrum coverage of the Jiuzhang photonic quantum computer
+              result published earlier that month by Pan Jianwei&apos;s group
+              at USTC.
+            </div>
+          </div>
+          <div className="rounded-lg border border-surface-3 bg-surface-1 p-4">
+            <div className="text-xs uppercase tracking-wider text-slate-500">
+              Block mined
+            </div>
+            <div className="mt-1 text-slate-200">December 27, 2020 19:09 UTC</div>
+            <div className="mt-2 text-xs text-slate-500">
+              18 days after the article. The headline was the most recent
+              quantum-supremacy claim available at launch time.
+            </div>
+          </div>
+        </div>
+
+        <p className="mt-6 text-sm text-slate-400">
+          The choice mirrors the convention Bitcoin set with its own genesis
+          coinbase, which embedded{" "}
+          <i>
+            &ldquo;The Times 03/Jan/2009 Chancellor on brink of second bailout
+            for banks&rdquo;
+          </i>{" "}
+          — a contemporary headline that timestamped the chain&apos;s launch
+          and signalled what it was reacting to. Tidecoin reaches for the same
+          gesture, but instead of a 2008-era bank bailout the headline points
+          at a quantum-computing milestone published 18 days before the chain
+          went live.
         </p>
       </section>
 
