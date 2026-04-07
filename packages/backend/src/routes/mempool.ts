@@ -15,7 +15,11 @@ import { formatTdcAmount, parseTdcAmount } from "@prevblock/shared";
  */
 export async function registerMempoolRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/mempool/stats", async () => {
-    const info = await app.rpc.getMempoolInfo();
+    const info = await app.cache.remember(
+      "mempool:info",
+      "mempool-stats-2s",
+      () => app.rpc.getMempoolInfo(),
+    );
     const minFeeSats = parseTdcAmount(info.mempoolminfee);
     return {
       txCount: info.size,

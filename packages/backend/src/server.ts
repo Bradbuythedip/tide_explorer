@@ -5,6 +5,7 @@ import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import { TidecoinRpcClient } from "@prevblock/rpc-client";
 import type { Config } from "./config.js";
+import type { Cache } from "./lib/cache.js";
 import { registerStatusRoutes } from "./routes/status.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerBlockRoutes } from "./routes/block.js";
@@ -14,6 +15,7 @@ import { registerMempoolRoutes } from "./routes/mempool.js";
 export interface BuildServerDeps {
   config: Config;
   rpc: TidecoinRpcClient;
+  cache: Cache;
 }
 
 /**
@@ -24,7 +26,7 @@ export interface BuildServerDeps {
 export async function buildServer(
   deps: BuildServerDeps,
 ): Promise<FastifyInstance> {
-  const { config, rpc } = deps;
+  const { config, rpc, cache } = deps;
 
   const app = Fastify({
     logger: {
@@ -49,6 +51,7 @@ export async function buildServer(
 
   app.decorate("rpc", rpc);
   app.decorate("appConfig", config);
+  app.decorate("cache", cache);
 
   app.setErrorHandler((err, req, reply) => {
     req.log.error({ err }, "request failed");
@@ -72,5 +75,6 @@ declare module "fastify" {
   interface FastifyInstance {
     rpc: TidecoinRpcClient;
     appConfig: Config;
+    cache: Cache;
   }
 }

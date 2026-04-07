@@ -21,16 +21,27 @@ import {
  */
 export async function registerStatusRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/v1/status", async () => {
-    // gettxoutsetinfo is expensive (tens of ms even warm); we still call
-    // it every status hit until Phase 1.6 introduces Redis caching. The
-    // cache TTL there will be the single source of freshness for this
-    // number. No silent staleness.
+    // Two tiers: the header fast-path (chain/network/mempool/mining)
+    // is cached 2 s, and gettxoutsetinfo — which is expensive on the
+    // node — is cached 30 s. The UI renders both values with a
+    // "last updated N s ago" label driven by meta.generatedAt so a
+    // skeptical user can see the freshness, not guess it.
     const [chain, network, mempool, mining, utxo] = await Promise.all([
-      app.rpc.getBlockchainInfo(),
-      app.rpc.getNetworkInfo(),
-      app.rpc.getMempoolInfo(),
-      app.rpc.getMiningInfo(),
-      app.rpc.getTxOutSetInfo(),
+      app.cache.remember("status:blockchaininfo", "status-2s", () =>
+        app.rpc.getBlockchainInfo(),
+      ),
+      app.cache.remember("status:networkinfo", "status-2s", () =>
+        app.rpc.getNetworkInfo(),
+      ),
+      app.cache.remember("status:mempoolinfo", "mempool-stats-2s", () =>
+        app.rpc.getMempoolInfo(),
+      ),
+      app.cache.remember("status:mininginfo", "status-2s", () =>
+        app.rpc.getMiningInfo(),
+      ),
+      app.cache.remember("status:txoutsetinfo", "txoutset-30s", () =>
+        app.rpc.getTxOutSetInfo(),
+      ),
     ]);
 
     const supplySats = parseTdcAmount(utxo.total_amount);

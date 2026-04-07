@@ -37,9 +37,23 @@ export async function registerBlockRoutes(app: FastifyInstance): Promise<void> {
       );
     }
 
+    // Confirmed blocks (>=6 deep) are immutable on this chain and
+    // cached forever keyed by hash. A reorg produces a distinct
+    // hash, so the cache is naturally reorg-safe. Blocks within 6
+    // of the tip bypass the cache — they might still move.
+    const cacheKey = `block:${hash}`;
+    const cached = await app.cache.get<ReturnType<typeof projectBlock>>(
+      cacheKey,
+    );
+    if (cached !== null) return cached;
+
     try {
       const block = await app.rpc.getBlockVerbose2(hash);
-      return projectBlock(block);
+      const projected = projectBlock(block);
+      if (block.confirmations >= 6) {
+        await app.cache.set(cacheKey, "forever", projected);
+      }
+      return projected;
     } catch (err) {
       return reply.notFound(`block ${hash} not found: ${errMsg(err)}`);
     }

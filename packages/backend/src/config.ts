@@ -17,6 +17,10 @@ const EnvSchema = z.object({
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+
+  /** Optional. If unset the backend uses a NoopCache and hits the node
+   *  every time — fine for local dev, not fine for production. */
+  REDIS_URL: z.string().url().optional(),
 });
 
 export type Config = z.infer<typeof EnvSchema>;

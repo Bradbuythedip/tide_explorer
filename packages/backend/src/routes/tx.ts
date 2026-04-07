@@ -30,12 +30,25 @@ export async function registerTxRoutes(app: FastifyInstance): Promise<void> {
     const query = QuerySchema.safeParse(req.query);
     if (!query.success) return reply.badRequest(query.error.message);
 
+    const cacheKey = `tx:${params.data.txid}`;
+    const cached = await app.cache.get<ReturnType<typeof projectTx>>(cacheKey);
+    if (cached !== null) return cached;
+
     try {
       const decoded = await app.rpc.getRawTransactionDecoded(
         params.data.txid,
         query.data.blockhash,
       );
-      return projectTx(decoded);
+      const projected = projectTx(decoded);
+      // Only cache confirmed, deeply-buried txs. Mempool txs change
+      // when they get confirmed; near-tip txs can be reorged.
+      if (
+        decoded.confirmations !== undefined &&
+        decoded.confirmations >= 6
+      ) {
+        await app.cache.set(cacheKey, "forever", projected);
+      }
+      return projected;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       // Tidecoin's getrawtransaction returns code -5 for "not found".

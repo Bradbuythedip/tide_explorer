@@ -1,6 +1,7 @@
 import { TidecoinRpcClient } from "@prevblock/rpc-client";
 import { loadConfig } from "./config.js";
 import { buildServer } from "./server.js";
+import { createCache } from "./lib/cache.js";
 
 async function main(): Promise<void> {
   const config = loadConfig();
@@ -12,12 +13,15 @@ async function main(): Promise<void> {
     timeoutMs: config.TIDECOIN_RPC_TIMEOUT_MS,
   });
 
-  const app = await buildServer({ config, rpc });
+  const cache = await createCache(config.REDIS_URL);
+
+  const app = await buildServer({ config, rpc, cache });
 
   const shutdown = async (signal: string) => {
     app.log.info({ signal }, "shutdown requested");
     try {
       await app.close();
+      await cache.close();
       await rpc.close();
       process.exit(0);
     } catch (err) {
