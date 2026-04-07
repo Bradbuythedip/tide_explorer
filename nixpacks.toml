@@ -1,0 +1,32 @@
+# Nixpacks build config for Railway.
+#
+# We use nixpacks.toml (read by Nixpacks directly) instead of nesting
+# the same config under railway.toml's nixpacksConfig key, because
+# Railway's parser was silently ignoring the nested form and falling
+# back to Nixpacks's auto-detected defaults — which include
+# 'pnpm i --frozen-lockfile' for pnpm workspaces, and we have no
+# pnpm-lock.yaml in the repo yet.
+#
+# This file applies to ALL services in the Railway project (backend
+# and indexer both build the same workspace). Per-service settings
+# in the Railway dashboard should leave Build Command and Install
+# Command BLANK and only set the Start Command.
+
+providers = ['node']
+
+[variables]
+NODE_VERSION = '20'
+NPM_CONFIG_PRODUCTION = 'false'
+
+[phases.setup]
+nixPkgs = ['nodejs_20']
+
+[phases.install]
+cmds = [
+  'npx --yes pnpm@9.12.0 install --no-frozen-lockfile'
+]
+
+[phases.build]
+cmds = [
+  'npx --yes pnpm@9.12.0 --filter @prevblock/shared --filter @prevblock/rpc-client build'
+]
