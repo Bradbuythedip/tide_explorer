@@ -72,3 +72,119 @@ async function get<T>(path: string): Promise<T | null> {
 export function getStatus(): Promise<StatusResponse | null> {
   return get<StatusResponse>("/api/v1/status");
 }
+
+// ---- richlist ----
+
+export interface RichlistEntry {
+  rank: number;
+  address: string;
+  balanceSats: string;
+  balanceTdc: string;
+  utxoCount: number;
+  hashProtectedSats: string;
+  pubkeyExposedSats: string;
+  bareP2pkSats: string;
+}
+
+export interface RichlistResponse {
+  minSats: string;
+  totalAddresses: number;
+  totalSats: string;
+  supplyTotalSats: string;
+  entries: RichlistEntry[];
+}
+
+export function getRichlist(
+  minTdc: number,
+  limit: number,
+): Promise<RichlistResponse | null> {
+  return get<RichlistResponse>(
+    `/api/v1/richlist?min_tdc=${minTdc}&limit=${limit}`,
+  );
+}
+
+// ---- quantum supply ----
+
+export interface QuantumSupplyResponse {
+  totalSats: string;
+  totalTdc: string;
+  hashProtectedSats: string;
+  hashProtectedTdc: string;
+  pubkeyExposedSats: string;
+  pubkeyExposedTdc: string;
+  bareP2pkSats: string;
+  bareP2pkTdc: string;
+  unclassifiedSats: string;
+  unclassifiedTdc: string;
+  asOfHeight: number;
+  nodeTipHeight: number;
+  blocksBehindTip: number;
+  isAtTip: boolean;
+}
+
+export function getQuantumSupply(): Promise<QuantumSupplyResponse | null> {
+  return get<QuantumSupplyResponse>("/api/v1/quantum/supply");
+}
+
+// ---- block ----
+
+export interface BlockSummary {
+  height: number;
+  hash: string;
+  previousHash: string | null;
+  nextHash: string | null;
+  time: number;
+  medianTime: number;
+  sizeBytes: number;
+  weight: number;
+  txCount: number;
+  confirmations: number;
+  totalOutSats: string;
+  totalOutTdc: string;
+  falconTxCount: number;
+  p2pkFalconTxCount: number;
+  txs: BlockTx[];
+}
+
+export interface BlockTx {
+  txid: string;
+  wtxid: string;
+  size: number;
+  vsize: number;
+  weight: number;
+  isCoinbase: boolean;
+  hasFalconInput: boolean;
+  hasP2pkFalconOutput: boolean;
+  vin: BlockTxIn[];
+  vout: BlockTxOut[];
+  totalOutSats: string;
+  totalOutTdc: string;
+}
+
+export interface BlockTxIn {
+  isCoinbase: boolean;
+  prevTxid: string | null;
+  prevVout: number | null;
+  scriptSigHex: string | null;
+  coinbaseHex: string | null;
+  sequence: number;
+  witness: { itemCount: number; items: { index: number; lengthBytes: number; hex: string }[]; looksLikeFalconP2wpkh: boolean } | null;
+}
+
+export interface BlockTxOut {
+  n: number;
+  valueSats: string;
+  valueTdc: string;
+  scriptType: string;
+  address: string | null;
+  hash: string | null;
+  pubkey: string | null;
+  witnessVersion: number | null;
+  nodeType: string;
+  scriptPubKeyHex: string;
+  scriptPubKeyAsm: string;
+}
+
+export function getBlock(idOrHeight: string): Promise<BlockSummary | null> {
+  return get<BlockSummary>(`/api/v1/block/${idOrHeight}`);
+}
