@@ -47,7 +47,14 @@ export async function buildServer(
 
   await app.register(sensible);
   await app.register(helmet, { contentSecurityPolicy: false });
-  await app.register(cors, { origin: true });
+  // CORS: in prod set CORS_ALLOWED_ORIGINS to a comma-separated list
+  // of full origins (e.g. "https://prevblock.com,https://www.prevblock.com").
+  // In dev (env unset) we allow all origins because the Next dev
+  // server is on a different port and uses rewrites anyway.
+  const corsOrigin = config.CORS_ALLOWED_ORIGINS
+    ? config.CORS_ALLOWED_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean)
+    : true;
+  await app.register(cors, { origin: corsOrigin });
   await app.register(rateLimit, {
     max: 120,
     timeWindow: "1 minute",

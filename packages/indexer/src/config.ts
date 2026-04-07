@@ -29,6 +29,15 @@ const EnvSchema = z.object({
    *  we don't starve the node during IBD. Set to 0 to disable. */
   INDEXER_MAX_BLOCKS_PER_SEC: z.coerce.number().nonnegative().default(0),
 
+  /**
+   * Log a per-block "indexed block" line every N blocks during
+   * catch-up. At tip (within 6 blocks) we log every block regardless,
+   * because that's the operationally interesting case. Set to 1 to
+   * get the old per-block firehose; set to 1000 if you're catching
+   * up on a Railway dashboard and don't want to pay for log storage.
+   */
+  INDEXER_LOG_EVERY: z.coerce.number().int().positive().default(100),
+
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),

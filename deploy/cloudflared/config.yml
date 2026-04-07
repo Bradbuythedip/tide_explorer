@@ -1,0 +1,33 @@
+# Cloudflare Tunnel config — exposes your local tidecoind RPC to
+# Railway over a private tunnel, no public IP required.
+#
+# Place this at /etc/cloudflared/config.yml on your box. The
+# tunnel UUID and credentials file path are filled in by
+# `cloudflared tunnel create prevblock-tidecoind` (see RAILWAY.md).
+#
+# IMPORTANT: change your tidecoind RPC password BEFORE running
+# this. The default `satoshi:satoshi` is fine for a localhost
+# binding but unsafe the moment a tunnel makes it reachable over
+# the internet, even with Cloudflare Access in front.
+
+# Replace with your tunnel's UUID after `cloudflared tunnel create`
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /etc/cloudflared/REPLACE_WITH_TUNNEL_UUID.json
+
+# Logging
+loglevel: info
+no-autoupdate: false
+
+# Ingress rules: requests to tidecoin-rpc.prevblock.com get
+# proxied to the local tidecoind RPC on 127.0.0.1:7585. Anything
+# else returns 404 — no fall-through, no accidental exposure.
+ingress:
+  - hostname: tidecoin-rpc.prevblock.com
+    service: http://127.0.0.1:7585
+    originRequest:
+      # tidecoind sends a JSON-RPC reply, then immediately closes.
+      # Don't try to keepalive into it.
+      keepAliveTimeout: 90s
+      # tidecoind doesn't speak HTTP/2.
+      noHappyEyeballs: true
+  - service: http_status:404

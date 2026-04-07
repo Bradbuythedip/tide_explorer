@@ -11,12 +11,27 @@ const EnvSchema = z.object({
   TIDECOIN_RPC_PASSWORD: z.string().min(1),
   TIDECOIN_RPC_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
 
+  // Railway and Heroku-style platforms inject PORT automatically; we
+  // honor it before falling back to BACKEND_PORT, then 3001.
+  // BACKEND_HOST stays 0.0.0.0 in prod so the platform's load
+  // balancer can reach the bind.
+  PORT: z.coerce.number().int().min(1).max(65535).optional(),
   BACKEND_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   BACKEND_HOST: z.string().default("0.0.0.0"),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
     .default("info"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+
+  /**
+   * Comma-separated allowed origins for CORS.
+   *
+   * In dev: leave unset and CORS allows any origin (the Next dev
+   * server runs on a different port and uses rewrites anyway).
+   * In prod: set to "https://prevblock.com" so only the live
+   * frontend can call the API. nginx still terminates TLS in front.
+   */
+  CORS_ALLOWED_ORIGINS: z.string().optional(),
 
   /** Optional. If unset the backend uses a NoopCache and hits the node
    *  every time — fine for local dev, not fine for production. */

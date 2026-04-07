@@ -76,10 +76,15 @@ export interface SyncDeps {
   logger: Logger;
   pollIntervalMs: number;
   batchSize: number;
+  /** Log a per-block line every N blocks during catch-up. At tip
+   *  (within 6 blocks) we always log. */
+  logEvery: number;
 }
 
 export class IndexerSync {
   private stopped = false;
+  /** Used to throttle per-block log spam during catch-up. */
+  private lastLoggedHeight = -Infinity;
 
   constructor(private readonly deps: SyncDeps) {}
 
@@ -131,11 +136,27 @@ export class IndexerSync {
 
     await this.deps.db.withTx(async (client) => {
       await this.insertBlock(client, block);
-      logger.info(
-        { height, hash: block.hash, txs: block.nTx },
-        "indexed block",
-      );
     });
+
+    // Throttle per-block log lines during catch-up so Railway/Cloud
+    // dashboards stay legible. Always log at tip and on the first
+    // block of a run.
+    const tip = await this.deps.rpc.getBlockCount().catch(() => height);
+    const blocksBehind = Math.max(0, tip - height);
+    const isAtTip = blocksBehind <= 6;
+    const sinceLast = height - this.lastLoggedHeight;
+    if (isAtTip || sinceLast >= this.deps.logEvery || this.lastLoggedHeight < 0) {
+      logger.info(
+        {
+          height,
+          hash: block.hash,
+          txs: block.nTx,
+          behind: blocksBehind,
+        },
+        isAtTip ? "indexed block (tip)" : "indexed block",
+      );
+      this.lastLoggedHeight = height;
+    }
   }
 
   private async getIndexedPrevHash(height: number): Promise<string | null> {

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 const MIN_TDC = 1000;
-const LIMIT = 500;
+const LIMIT = 5000;
 const SATOSHIS_PER_COIN = 100_000_000n;
 
 export default async function RichlistPage() {
@@ -123,28 +123,38 @@ function RichlistView({
       </section>
 
       <section>
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-surface-3 text-left text-xs uppercase tracking-wider text-slate-500">
-              <th className="py-3 pr-4">#</th>
-              <th className="py-3 pr-4">Address</th>
-              <th className="py-3 pr-4 text-right">Balance (TDC)</th>
-              <th className="py-3 pr-4 text-right">UTXOs</th>
-              <th className="py-3 pr-4">Falcon partition</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.entries.map((e) => (
-              <RichlistRow key={e.address} entry={e} />
-            ))}
-          </tbody>
-        </table>
-        {data.entries.length === 0 && (
-          <p className="py-12 text-center text-sm text-slate-500">
-            No addresses meet the threshold yet. The indexer may still be
-            catching up.
-          </p>
-        )}
+        <div className="mb-3 flex items-baseline justify-between text-xs text-slate-500">
+          <span>
+            Showing {data.entries.length.toLocaleString()} of{" "}
+            {data.totalAddresses.toLocaleString()} addresses ≥{" "}
+            {MIN_TDC.toLocaleString()} TDC
+          </span>
+          <span>ordered by balance, descending</span>
+        </div>
+        <div className="overflow-hidden rounded-lg border border-surface-3">
+          <table className="w-full border-collapse text-sm">
+            <thead className="bg-surface-1">
+              <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
+                <th className="py-3 pl-4 pr-4">#</th>
+                <th className="py-3 pr-4">Address</th>
+                <th className="py-3 pr-4 text-right">Balance (TDC)</th>
+                <th className="py-3 pr-4 text-right">UTXOs</th>
+                <th className="py-3 pr-4">Falcon partition</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.entries.map((e) => (
+                <RichlistRow key={e.address} entry={e} />
+              ))}
+            </tbody>
+          </table>
+          {data.entries.length === 0 && (
+            <p className="py-12 text-center text-sm text-slate-500">
+              No addresses meet the threshold yet. The indexer may still be
+              catching up.
+            </p>
+          )}
+        </div>
       </section>
     </>
   );
@@ -161,8 +171,8 @@ function RichlistRow({ entry }: { entry: RichlistEntry }) {
   const pctBare = total > 0n ? Number((bare * 10000n) / total) / 100 : 0;
 
   return (
-    <tr className="border-b border-surface-2/60 hover:bg-surface-1">
-      <td className="py-3 pr-4 text-slate-500">{entry.rank}</td>
+    <tr className="border-t border-surface-2/60 hover:bg-surface-1">
+      <td className="py-3 pl-4 pr-4 text-slate-500">{entry.rank}</td>
       <td className="mono py-3 pr-4 text-slate-300">
         <Link href={`/address/${entry.address}`}>{shortAddr(entry.address)}</Link>
       </td>

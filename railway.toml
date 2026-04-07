@@ -1,0 +1,30 @@
+# Railway monorepo manifest.
+#
+# This file applies to ALL services in the Railway project. Per-service
+# settings (Root Directory, Build Command, Start Command, Watch Paths)
+# are configured in the Railway dashboard — see RAILWAY.md.
+#
+# What's pinned here:
+#   - Node 20.x via Nixpacks (matches .nvmrc and the rest of the repo)
+#   - pnpm via corepack (no manual install step)
+#   - Frozen lockfile install at the workspace root
+#
+# Railway picks Nixpacks automatically when it sees pnpm-workspace.yaml,
+# so the only reason this file exists is to make the Node + pnpm version
+# explicit and to share the install step across all services.
+
+[build]
+builder = "nixpacks"
+
+[build.nixpacksConfig]
+providers = ["node"]
+
+[build.nixpacksConfig.variables]
+NODE_VERSION = "20"
+NPM_CONFIG_PRODUCTION = "false"
+
+[build.nixpacksConfig.phases.setup]
+nixPkgs = ["nodejs_20", "pnpm-9_x"]
+
+[build.nixpacksConfig.phases.install]
+cmds = ["pnpm install --frozen-lockfile"]

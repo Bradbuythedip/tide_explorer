@@ -1,10 +1,22 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // The backend lives on :3001. In dev we rewrite /api/* to it so the
-  // browser doesn't need CORS and the dev experience matches prod
-  // (where nginx does the same rewrite). Override in .env.local:
-  //   NEXT_PUBLIC_BACKEND_URL=http://127.0.0.1:3001
+  // The frontend reads from the backend in two contexts:
+  //
+  //   1. Dev (pnpm -C packages/frontend dev): backend runs on
+  //      localhost:3001. We rewrite /api/v1/* to it so the browser
+  //      sees same-origin and we don't need CORS.
+  //
+  //   2. Prod (Vercel): backend runs on api.prevblock.com behind
+  //      nginx + Let's Encrypt on a separate box. Set
+  //      BACKEND_INTERNAL_URL=https://api.prevblock.com in the
+  //      Vercel project's environment variables and the same
+  //      rewrite rule forwards there. Server components also use
+  //      this URL via lib/api.ts when running on Vercel's edge/node
+  //      runtime.
+  //
+  // The single env var works for both because Next does the rewrite
+  // server-side, never exposing the backend URL to the client.
   async rewrites() {
     const backend = process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:3001";
     return [
@@ -14,8 +26,6 @@ const nextConfig = {
       },
     ];
   },
-  // Transpile the shared workspace package — Next would otherwise skip
-  // node_modules and we'd have to build shared separately every change.
   transpilePackages: ["@prevblock/shared"],
 };
 
