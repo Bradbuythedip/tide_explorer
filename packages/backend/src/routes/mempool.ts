@@ -40,11 +40,7 @@ export async function registerMempoolRoutes(app: FastifyInstance): Promise<void>
     const query = RecentQuery.safeParse(req.query);
     if (!query.success) return reply.badRequest(query.error.message);
 
-    const verbose = await app.rpc.getRawMempool(true);
-    if (Array.isArray(verbose)) {
-      // Defensive — rpc-client returns an object in verbose mode.
-      return [];
-    }
+    const verbose = await app.rpc.getRawMempoolVerbose();
     const entries = Object.entries(verbose).map(([txid, info]) => {
       const feeSats = parseTdcAmount(info.fee);
       return {
