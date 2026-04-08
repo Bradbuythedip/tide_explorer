@@ -76,10 +76,16 @@ export interface RichlistResult {
   totalAddresses: number;
   /** Sum of all balances meeting the threshold. */
   totalSats: string;
-  /** Sum of UNFILTERED supply for context (i.e. all UTXOs in the
-   *  indexer regardless of address). Lets the UI compute the
-   *  "richlist holds X% of supply" headline. */
-  supplyTotalSats: string;
+  /** Sum of UNFILTERED supply in the indexer (all unspent outputs
+   *  the indexer has seen so far, regardless of address). This is
+   *  the INDEXER'S supply, not the chain's real supply — compare
+   *  against asOfHeight below to see how much of the chain is
+   *  represented. */
+  indexedSupplySats: string;
+  /** The indexer's last_indexed_height when this snapshot was taken.
+   *  Lets the UI display freshness and compute a "richlist is
+   *  populating" banner against the real node tip. */
+  asOfHeight: number;
   entries: RichlistEntry[];
 }
 
@@ -237,7 +243,8 @@ class PgIndexerDb implements IndexerDb {
     const header = await this.pool.query<{
       total_addresses: string;
       total_sats: string;
-      supply_total_sats: string;
+      indexed_supply_sats: string;
+      as_of_height: string | null;
     }>(
       `WITH agg AS (
          SELECT address, SUM(value_sats) AS bal
@@ -250,7 +257,9 @@ class PgIndexerDb implements IndexerDb {
          (SELECT COALESCE(SUM(bal), 0)::text FROM agg WHERE bal >= $1::numeric) AS total_sats,
          (SELECT COALESCE(SUM(value_sats), 0)::text
             FROM prevblock.outputs
-           WHERE spent_by_txid IS NULL) AS supply_total_sats`,
+           WHERE spent_by_txid IS NULL) AS indexed_supply_sats,
+         (SELECT v::text FROM prevblock.chain_state
+           WHERE k = 'last_indexed_height') AS as_of_height`,
       [minSats.toString()],
     );
 
@@ -309,7 +318,8 @@ class PgIndexerDb implements IndexerDb {
       minSats: minSats.toString(),
       totalAddresses: Number(headerRow.total_addresses),
       totalSats: headerRow.total_sats,
-      supplyTotalSats: headerRow.supply_total_sats,
+      indexedSupplySats: headerRow.indexed_supply_sats,
+      asOfHeight: Number.parseInt(headerRow.as_of_height ?? "-1", 10),
       entries,
     };
   }
