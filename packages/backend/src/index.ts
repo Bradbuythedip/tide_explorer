@@ -17,7 +17,10 @@ async function main(): Promise<void> {
   const cache = await createCache(config.REDIS_URL);
   const indexerDb = createIndexerDb(config.DATABASE_URL);
 
-  const app = await buildServer({ config, rpc, cache, indexerDb });
+  // buildServer now returns { app, poller, hub } — the poller and
+  // hub are managed by Fastify's onReady/onClose hooks, so we only
+  // need to hold onto `app` here.
+  const { app } = await buildServer({ config, rpc, cache, indexerDb });
 
   const shutdown = async (signal: string) => {
     app.log.info({ signal }, "shutdown requested");

@@ -3,10 +3,13 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
+import websocket from "@fastify/websocket";
 import { TidecoinRpcClient } from "@prevblock/rpc-client";
 import type { Config } from "./config.js";
 import type { Cache } from "./lib/cache.js";
 import type { IndexerDb } from "./lib/indexer-db.js";
+import { EventPoller } from "./lib/event-poller.js";
+import { WsHub } from "./lib/ws-hub.js";
 import { registerStatusRoutes } from "./routes/status.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerBlockRoutes } from "./routes/block.js";
@@ -15,6 +18,8 @@ import { registerMempoolRoutes } from "./routes/mempool.js";
 import { registerAddressRoutes } from "./routes/address.js";
 import { registerRichlistRoutes } from "./routes/richlist.js";
 import { registerQuantumRoutes } from "./routes/quantum.js";
+import { registerBlocksRecentRoutes } from "./routes/blocks-recent.js";
+import { registerWsRoutes } from "./routes/ws.js";
 
 export interface BuildServerDeps {
   config: Config;
@@ -23,23 +28,26 @@ export interface BuildServerDeps {
   indexerDb: IndexerDb | null;
 }
 
+export interface BuiltServer {
+  app: FastifyInstance;
+  poller: EventPoller;
+  hub: WsHub;
+}
+
 /**
- * Build a Fastify instance. Factory shape so tests can pass a mock rpc
- * later (for the rpc-client package's own tests; not for the backend's
- * route tests — those hit a real regtest node per Phase 1 acceptance).
+ * Build a Fastify instance + its event poller + ws hub. The poller
+ * and hub are returned alongside the Fastify app so the process-level
+ * startup code can start/stop them in sync with app.listen/close.
  */
 export async function buildServer(
   deps: BuildServerDeps,
-): Promise<FastifyInstance> {
+): Promise<BuiltServer> {
   const { config, rpc, cache, indexerDb } = deps;
 
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
-      redact: [
-        "req.headers.authorization",
-        "req.headers.cookie",
-      ],
+      redact: ["req.headers.authorization", "req.headers.cookie"],
     },
     trustProxy: true,
     disableRequestLogging: false,
@@ -47,10 +55,9 @@ export async function buildServer(
 
   await app.register(sensible);
   await app.register(helmet, { contentSecurityPolicy: false });
+
   // CORS: in prod set CORS_ALLOWED_ORIGINS to a comma-separated list
-  // of full origins (e.g. "https://prevblock.com,https://www.prevblock.com").
-  // In dev (env unset) we allow all origins because the Next dev
-  // server is on a different port and uses rewrites anyway.
+  // of full origins. Dev (env unset) allows all.
   const corsOrigin = config.CORS_ALLOWED_ORIGINS
     ? config.CORS_ALLOWED_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean)
     : true;
@@ -59,6 +66,15 @@ export async function buildServer(
     max: 120,
     timeWindow: "1 minute",
     hook: "preHandler",
+  });
+
+  // WebSocket support. Must be registered BEFORE routes that use it.
+  await app.register(websocket, {
+    options: {
+      // Reasonable frame size limit — our messages are small JSON
+      // objects, anything over 64KB is almost certainly abuse.
+      maxPayload: 64 * 1024,
+    },
   });
 
   app.decorate("rpc", rpc);
@@ -75,16 +91,35 @@ export async function buildServer(
     });
   });
 
+  // Event poller — polls the node every 5s, emits events internally.
+  // WsHub subscribes to it and fans out to WebSocket clients.
+  const poller = new EventPoller({ rpc, logger: app.log });
+  const hub = new WsHub({ poller, logger: app.log });
+
+  // HTTP routes
   await registerHealthRoutes(app);
   await registerStatusRoutes(app);
   await registerBlockRoutes(app);
+  await registerBlocksRecentRoutes(app);
   await registerTxRoutes(app);
   await registerMempoolRoutes(app);
   await registerAddressRoutes(app);
   await registerRichlistRoutes(app);
   await registerQuantumRoutes(app);
 
-  return app;
+  // WebSocket route (must come after websocket plugin registration)
+  await registerWsRoutes(app, hub);
+
+  // Start the poller once Fastify is ready to accept connections.
+  app.addHook("onReady", async () => {
+    poller.start();
+  });
+  // Stop it cleanly on shutdown.
+  app.addHook("onClose", async () => {
+    await poller.stop();
+  });
+
+  return { app, poller, hub };
 }
 
 declare module "fastify" {

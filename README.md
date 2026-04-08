@@ -2,8 +2,6 @@
 
 The Tidecoin block explorer. Lives at **prevblock.com**.
 
-Built by prevblock, the original Tidecoin creator on bitcointalk.
-
 ## Status
 
 | Phase | What | State |
