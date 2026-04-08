@@ -61,6 +61,7 @@ export default async function HomePage() {
         <Link href="/richlist">Richlist</Link>
         <Link href="/glossary">Glossary</Link>
         <Link href="/threat-model">Threat model</Link>
+        <Link href="/tidoshi">Tidoshi</Link>
       </nav>
     </main>
   );
