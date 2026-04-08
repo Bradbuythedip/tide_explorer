@@ -90,8 +90,17 @@ export interface RichlistResponse {
   minSats: string;
   totalAddresses: number;
   totalSats: string;
-  indexedSupplySats: string;
-  asOfHeight: number;
+  /** Current name for the indexer's total unspent supply. */
+  indexedSupplySats?: string;
+  /**
+   * Legacy name for the same field — backend used to return this
+   * until the indexer-db.ts rename. Keep reading it defensively so
+   * a frontend-ahead-of-backend deploy doesn't crash the page.
+   */
+  supplyTotalSats?: string;
+  /** Indexer's last_indexed_height. Optional because the legacy
+   *  backend shape didn't include it. */
+  asOfHeight?: number;
   entries: RichlistEntry[];
 }
 
