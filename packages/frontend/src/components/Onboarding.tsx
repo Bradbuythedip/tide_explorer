@@ -249,10 +249,8 @@ function SlideThree() {
         </li>
       </ul>
       <p className="mt-5 text-slate-300">
-        prevblock is the first Tidecoin explorer that classifies these correctly.
-        The node itself labels the genesis coinbase as{" "}
-        <span className="mono text-threat-bare">nonstandard</span> — we label it{" "}
-        <span className="mono text-threat-bare">p2pk_falcon</span>.
+        prevblock shows every address&apos;s balance broken down into these
+        three buckets so you can see at a glance how exposed your coins are.
       </p>
     </div>
   );

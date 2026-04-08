@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-const MIN_TDC = 1000;
-const LIMIT = 5000;
+const MIN_TDC = 0;
+const LIMIT = 500;
 const SATOSHIS_PER_COIN = 100_000_000n;
 
 export default async function RichlistPage() {
@@ -21,18 +21,26 @@ export default async function RichlistPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
-      <header className="mb-10">
-        <p className="text-sm uppercase tracking-wider text-brand-glow">Richlist</p>
-        <h1 className="mt-2 text-3xl font-semibold text-slate-100">
-          Tidecoin addresses holding ≥ {MIN_TDC.toLocaleString()} TDC
-        </h1>
-        <p className="mt-3 max-w-2xl text-slate-400">
-          Every address with at least {MIN_TDC.toLocaleString()} TDC unspent,
-          ordered by balance. Each row shows how that whale&apos;s coins split
-          across the three Falcon buckets — <Term name="hash-protected" />,{" "}
-          <Term name="pubkey-exposed" />, and <Term name="bare-p2pk" />. The
-          buckets are computed from the indexer&apos;s UTXO set, not estimated.
-        </p>
+      <header className="mb-10 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+        <img
+          src="/tidecoin-coin.svg"
+          alt=""
+          width={96}
+          height={96}
+          className="shrink-0"
+        />
+        <div>
+          <p className="text-sm uppercase tracking-wider text-brand-glow">
+            Tidecoin richlist
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold text-slate-100">
+            Top {LIMIT.toLocaleString()} Tidecoin addresses by balance
+          </h1>
+          <p className="mt-3 max-w-2xl text-slate-400">
+            The largest unspent balances on the Tidecoin chain, ordered from
+            highest to lowest. Updated from the live indexer.
+          </p>
+        </div>
       </header>
 
       {data === null ? (
@@ -103,12 +111,12 @@ function RichlistView({
 
         <div className="space-y-4">
           <Kpi
-            label={`Addresses ≥ ${MIN_TDC} TDC`}
-            value={data.totalAddresses.toLocaleString()}
+            label="Addresses shown"
+            value={data.entries.length.toLocaleString()}
           />
           <Kpi label="Combined balance" value={`${totalTdc} TDC`} />
           <Kpi
-            label="As % of indexed supply"
+            label="Top 500 as % of supply"
             value={`${pctOfSupply.toFixed(2)}%`}
           />
           {data.entries.length < data.totalAddresses && (
@@ -125,9 +133,10 @@ function RichlistView({
       <section>
         <div className="mb-3 flex items-baseline justify-between text-xs text-slate-500">
           <span>
-            Showing {data.entries.length.toLocaleString()} of{" "}
-            {data.totalAddresses.toLocaleString()} addresses ≥{" "}
-            {MIN_TDC.toLocaleString()} TDC
+            Showing {data.entries.length.toLocaleString()} addresses
+            {data.totalAddresses > data.entries.length && (
+              <> of {data.totalAddresses.toLocaleString()} indexed</>
+            )}
           </span>
           <span>ordered by balance, descending</span>
         </div>

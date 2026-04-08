@@ -15,7 +15,8 @@ export function Footer() {
     <footer className="mt-24 border-t border-surface-2 px-6 py-8 text-xs text-slate-600">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4">
         <p>
-          prevblock · post-quantum Tidecoin explorer ·{" "}
+          prevblock · Tidecoin block explorer · built by prevblock, the
+          original Tidecoin creator on bitcointalk ·{" "}
           <button
             type="button"
             onClick={openOnboarding}
@@ -25,7 +26,6 @@ export function Footer() {
           </button>
         </p>
         <nav className="flex gap-4">
-          <Link href="/threat-model">Threat model</Link>
           <Link href="/glossary">Glossary</Link>
           <a
             href="https://github.com/Bradbuythedip/tide_explorer"
