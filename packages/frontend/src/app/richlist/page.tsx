@@ -131,8 +131,8 @@ function RichlistView({
           </span>
           <span>ordered by balance, descending</span>
         </div>
-        <div className="overflow-hidden rounded-lg border border-surface-3">
-          <table className="w-full border-collapse text-sm">
+        <div className="overflow-x-auto rounded-lg border border-surface-3">
+          <table className="w-full min-w-[560px] border-collapse text-sm">
             <thead className="bg-surface-1">
               <tr className="text-left text-xs uppercase tracking-wider text-slate-500">
                 <th className="py-3 pl-4 pr-4">#</th>

@@ -10,6 +10,30 @@ html,
 body {
   @apply bg-surface-0 text-slate-100 antialiased;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  /* Mobile safety: prevent any stray overflow (long hex hashes,
+     tables, etc.) from causing horizontal body scroll. Individual
+     scrollable elements still use overflow-x-auto locally. */
+  overflow-x: hidden;
+}
+
+/* Long monospace hashes should wrap aggressively on narrow
+   viewports, not force horizontal scroll. This applies to every
+   .mono class in the app — inline hashes, long addresses, witness
+   hex dumps inside <pre> get their own overflow-x-auto container
+   so code blocks still scroll within themselves. */
+.mono {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Restore normal non-breaking behavior inside <pre> and <code>
+   blocks that are intentionally scrollable containers — the outer
+   pre already has overflow-x-auto. */
+pre .mono,
+pre.mono,
+code.mono {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 /* Single source of truth for link color — violet brand, never emerald.
@@ -19,7 +43,9 @@ a {
   transition: color 120ms ease;
 }
 
-/* Monospace helper used for hex hashes, Falcon byte dumps, etc. */
+/* Monospace helper used for hex hashes, Falcon byte dumps, etc.
+   (mobile-safety overflow rules applied above this class are kept
+   separate so they're visible in the cascade.) */
 .mono {
   @apply font-mono tabular-nums;
 }

@@ -76,8 +76,8 @@ export function SearchBar() {
           type="text"
           autoComplete="off"
           spellCheck={false}
-          placeholder="Block height, txid, or address (tbc1…, T…, F…, V…)"
-          className="mono flex-1 bg-transparent text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none"
+          placeholder="Height, txid, or address…"
+          className="mono min-w-0 flex-1 bg-transparent text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onBlur={() => setTouched(true)}

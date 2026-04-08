@@ -156,23 +156,23 @@ export default async function GenesisPage() {
                 <div className="mono mt-1 text-sm text-slate-100">
                   {out.valueTdc} TDC
                 </div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                  <span className="text-slate-500">prevblock scriptType</span>
-                  <span className="mono text-threat-bare">{out.scriptType}</span>
-                  <span className="text-slate-500">node scriptType</span>
-                  <span className="mono text-slate-400">{out.nodeType}</span>
+                <dl className="mt-2 space-y-2 text-xs sm:grid sm:grid-cols-[max-content_minmax(0,1fr)] sm:gap-x-4 sm:gap-y-1 sm:space-y-0">
+                  <dt className="text-slate-500">prevblock scriptType</dt>
+                  <dd className="mono text-threat-bare">{out.scriptType}</dd>
+                  <dt className="text-slate-500">node scriptType</dt>
+                  <dd className="mono text-slate-400">{out.nodeType}</dd>
                   {out.pubkey && (
                     <>
-                      <span className="text-slate-500">Falcon pubkey</span>
-                      <span className="mono break-all text-slate-400">
+                      <dt className="text-slate-500">Falcon pubkey</dt>
+                      <dd className="mono break-all text-slate-400">
                         {out.pubkey.slice(0, 32)}…{out.pubkey.slice(-16)}{" "}
                         <span className="text-slate-600">
                           ({out.pubkey.length / 2} bytes)
                         </span>
-                      </span>
+                      </dd>
                     </>
                   )}
-                </div>
+                </dl>
               </div>
             ))}
           </div>
@@ -183,7 +183,7 @@ export default async function GenesisPage() {
         <h2 className="text-xs uppercase tracking-wider text-slate-500">
           Block facts
         </h2>
-        <dl className="mt-3 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2">
+        <dl className="mt-3 space-y-4 sm:grid sm:grid-cols-[max-content_minmax(0,1fr)] sm:gap-x-6 sm:gap-y-2 sm:space-y-0">
           <dt className="text-slate-500">Height</dt>
           <dd className="mono text-slate-200">0</dd>
           <dt className="text-slate-500">Hash</dt>
@@ -197,7 +197,7 @@ export default async function GenesisPage() {
             <Term name="falcon-512" />
           </dd>
           <dt className="text-slate-500">Source</dt>
-          <dd className="mono text-slate-400">
+          <dd className="mono break-all text-slate-400">
             chainparams.cpp:115 — assert(consensus.hashGenesisBlock == 0x480ecc…)
           </dd>
         </dl>
