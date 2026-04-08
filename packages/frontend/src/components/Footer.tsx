@@ -25,6 +25,7 @@ export function Footer() {
           </button>
         </p>
         <nav className="flex gap-4">
+          <Link href="/tidoshi">Tidoshi</Link>
           <Link href="/glossary">Glossary</Link>
           <a
             href="https://github.com/Bradbuythedip/tide_explorer"
