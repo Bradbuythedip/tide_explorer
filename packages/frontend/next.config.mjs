@@ -35,7 +35,18 @@ const nextConfig = {
   // The single env var works for both because Next does the rewrite
   // server-side, never exposing the backend URL to the client.
   async rewrites() {
-    const backend = process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:3001";
+    // Normalize BACKEND_INTERNAL_URL so a missing scheme or a trailing
+    // slash can't turn into a next build compile failure. A previous
+    // deploy set this to 'prevblockbackend-production.up.railway.app'
+    // (no https://) and Next's rewrite validator rejected the whole
+    // build with "destination does not start with /, http://, or
+    // https://". Auto-prepend https:// if the scheme is missing, and
+    // strip any trailing slash so we don't produce '//api/v1/...'.
+    let backend = process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:3001";
+    if (!/^https?:\/\//i.test(backend)) {
+      backend = "https://" + backend;
+    }
+    backend = backend.replace(/\/+$/, "");
     return [
       {
         source: "/api/v1/:path*",
