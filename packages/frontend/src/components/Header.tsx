@@ -37,6 +37,9 @@ export function Header() {
           <Link href="/genesis">Genesis</Link>
           <Link href="/quantum">Quantum</Link>
           <Link href="/richlist">Richlist</Link>
+          <Link href="/tidoshi" className="text-brand-glow">
+            Tidoshi
+          </Link>
           <Link href="/glossary">Glossary</Link>
         </nav>
       </div>
