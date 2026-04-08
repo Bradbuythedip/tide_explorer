@@ -22,36 +22,42 @@ export async function generateMetadata({
 
 export default async function AddressPage({ params }: PageProps) {
   const data = await getAddress(params.addr);
-  if (data === null) notFound();
+  if (data === null) {
+    notFound();
+  }
+  // TypeScript narrowing: after notFound() (which is never-returning) the
+  // const below is guaranteed non-null. Explicit assignment keeps the
+  // control-flow analyzer happy on tsconfig strict + noUncheckedIndexedAccess.
+  const summary: AddressSummary = data;
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <header className="mb-8">
         <p className="text-sm uppercase tracking-wider text-brand-glow">Address</p>
         <h1 className="mono mt-2 break-all text-2xl font-semibold text-slate-100">
-          {data.address}
+          {summary.address}
         </h1>
         <p className="mt-3 text-sm text-slate-500">
-          {data.utxoCount.toLocaleString()} UTXO{data.utxoCount === 1 ? "" : "s"} ·{" "}
-          {Number(data.balanceTdc).toLocaleString(undefined, {
+          {summary.utxoCount.toLocaleString()} UTXO{summary.utxoCount === 1 ? "" : "s"} ·{" "}
+          {Number(summary.balanceTdc).toLocaleString(undefined, {
             maximumFractionDigits: 8,
           })}{" "}
           TDC
         </p>
       </header>
 
-      <Partition data={data} />
+      <Partition data={summary} />
 
       <section className="mt-10">
         <h2 className="mb-4 text-xs uppercase tracking-wider text-slate-500">
           Unspent outputs
-          {data.utxos.length < data.utxoCount && (
+          {summary.utxos.length < summary.utxoCount && (
             <span className="ml-2 normal-case text-slate-600">
-              showing {data.utxos.length} of {data.utxoCount.toLocaleString()}
+              showing {summary.utxos.length} of {summary.utxoCount.toLocaleString()}
             </span>
           )}
         </h2>
-        {data.utxos.length === 0 ? (
+        {summary.utxos.length === 0 ? (
           <p className="text-sm text-slate-500">No unspent outputs.</p>
         ) : (
           <table className="w-full border-collapse text-sm">
@@ -64,7 +70,7 @@ export default async function AddressPage({ params }: PageProps) {
               </tr>
             </thead>
             <tbody>
-              {data.utxos.map((u) => (
+              {summary.utxos.map((u) => (
                 <tr
                   key={`${u.txid}:${u.vout}`}
                   className="border-b border-surface-2/60 hover:bg-surface-1"

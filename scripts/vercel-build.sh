@@ -14,6 +14,20 @@ set -u  # error on unset vars, but NOT -e so we control the exit flow
 
 echo "===[1/4] START==="
 
+# Clear any stale incremental tsc cache that Vercel may have restored
+# from a previous deployment. A stale .tsbuildinfo can cause tsc to
+# skip re-emitting files or hang on type resolution, especially when
+# the source tree has changed since the cache was taken.
+echo "=== clearing stale .tsbuildinfo files ==="
+rm -f packages/shared/tsconfig.tsbuildinfo || true
+rm -f packages/rpc-client/tsconfig.tsbuildinfo || true
+rm -f packages/backend/tsconfig.tsbuildinfo || true
+rm -f packages/indexer/tsconfig.tsbuildinfo || true
+rm -f packages/frontend/tsconfig.tsbuildinfo || true
+rm -rf packages/shared/dist || true
+rm -rf packages/rpc-client/dist || true
+echo "=== cache cleared ==="
+
 echo "===[2/4] building @prevblock/shared==="
 npx --yes pnpm@9.12.0 --filter @prevblock/shared build 2>&1
 SHARED_EXIT=$?
