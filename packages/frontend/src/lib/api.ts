@@ -90,7 +90,8 @@ export interface RichlistResponse {
   minSats: string;
   totalAddresses: number;
   totalSats: string;
-  supplyTotalSats: string;
+  indexedSupplySats: string;
+  asOfHeight: number;
   entries: RichlistEntry[];
 }
 

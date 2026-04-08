@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getRichlist, type RichlistEntry } from "@/lib/api";
+import { getRichlist, getStatus, type RichlistEntry } from "@/lib/api";
 import { DonutChart, type DonutSlice } from "@/components/DonutChart";
-import { Term } from "@/components/Term";
 
 export const metadata: Metadata = {
   title: "Tidecoin richlist",
   description:
-    "Every Tidecoin address holding 1,000 TDC or more, with each balance broken down into the three-bucket Falcon partition: hash-protected, pubkey-exposed, and bare P2PK.",
+    "Top Tidecoin addresses by unspent balance, ordered from highest to lowest.",
 };
 
 export const dynamic = "force-dynamic";
@@ -17,7 +16,15 @@ const LIMIT = 500;
 const SATOSHIS_PER_COIN = 100_000_000n;
 
 export default async function RichlistPage() {
-  const data = await getRichlist(MIN_TDC, LIMIT);
+  // Fetch in parallel: the richlist from the indexer, and the chain
+  // status from the node. We use the status to decide whether to show
+  // a 'catching up' banner — at current indexer depth the richlist is
+  // only the first few thousand addresses and does not represent the
+  // real tip state.
+  const [data, status] = await Promise.all([
+    getRichlist(MIN_TDC, LIMIT),
+    getStatus(),
+  ]);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
@@ -46,7 +53,10 @@ export default async function RichlistPage() {
       {data === null ? (
         <DataUnavailable />
       ) : (
-        <RichlistView data={data} />
+        <>
+          <CatchupBanner data={data} status={status} />
+          <RichlistView data={data} />
+        </>
       )}
 
       <p className="mt-12 text-sm">
@@ -58,16 +68,50 @@ export default async function RichlistPage() {
   );
 }
 
+function CatchupBanner({
+  data,
+  status,
+}: {
+  data: NonNullable<Awaited<ReturnType<typeof getRichlist>>>;
+  status: Awaited<ReturnType<typeof getStatus>>;
+}) {
+  const nodeTip = status?.chain.tipHeight ?? null;
+  const asOf = data.asOfHeight;
+  if (nodeTip === null || asOf < 0) return null;
+  const behind = Math.max(0, nodeTip - asOf);
+  if (behind <= 6) return null; // At tip, no banner needed
+
+  const pct = nodeTip > 0 ? (asOf / nodeTip) * 100 : 0;
+
+  return (
+    <div className="mb-8 rounded-lg border border-surface-3 bg-surface-1 p-5 text-sm">
+      <p className="text-slate-200">
+        <strong>Indexer is catching up.</strong> prevblock&apos;s indexer
+        processes blocks from genesis forward and is currently at block{" "}
+        <span className="mono">{asOf.toLocaleString()}</span> of{" "}
+        <span className="mono">{nodeTip.toLocaleString()}</span> ({pct.toFixed(1)}%).
+      </p>
+      <p className="mt-2 text-slate-400">
+        The table below shows the richest addresses{" "}
+        <em>among the blocks indexed so far</em>, not the chain&apos;s final
+        state. As the indexer catches up, addresses with larger accumulated
+        balances will appear at the top. Refresh periodically while this
+        banner is visible.
+      </p>
+    </div>
+  );
+}
+
 function RichlistView({
   data,
 }: {
   data: NonNullable<Awaited<ReturnType<typeof getRichlist>>>;
 }) {
   const totalSats = BigInt(data.totalSats);
-  const supplyTotalSats = BigInt(data.supplyTotalSats);
+  const indexedSupplySats = BigInt(data.indexedSupplySats);
   const totalTdc = formatTdc(totalSats);
-  const pctOfSupply = supplyTotalSats > 0n
-    ? Number((totalSats * 10000n) / supplyTotalSats) / 100
+  const pctOfIndexed = indexedSupplySats > 0n
+    ? Number((totalSats * 10000n) / indexedSupplySats) / 100
     : 0;
 
   // Top-10 donut: aggregate the rest into "other whales"
@@ -95,17 +139,17 @@ function RichlistView({
       <section className="mb-10 grid gap-6 lg:grid-cols-[auto_1fr]">
         <DonutChart
           slices={slices}
-          ariaLabel={`Top 10 Tidecoin whales by balance, with the remaining ${data.entries.length - 10} whales aggregated`}
+          ariaLabel={`Top 10 Tidecoin addresses by balance, with the remaining ${data.entries.length - 10} aggregated`}
           size={260}
         >
           <div>
             <div className="text-xs uppercase tracking-wider text-slate-500">
-              richlist holds
+              top {data.entries.length} hold
             </div>
             <div className="mono mt-1 text-2xl font-semibold text-slate-100">
-              {pctOfSupply.toFixed(1)}%
+              {pctOfIndexed.toFixed(1)}%
             </div>
-            <div className="text-xs text-slate-500">of total supply</div>
+            <div className="text-xs text-slate-500">of indexed supply</div>
           </div>
         </DonutChart>
 
@@ -116,8 +160,8 @@ function RichlistView({
           />
           <Kpi label="Combined balance" value={`${totalTdc} TDC`} />
           <Kpi
-            label="Top 500 as % of supply"
-            value={`${pctOfSupply.toFixed(2)}%`}
+            label="Indexed addresses"
+            value={data.totalAddresses.toLocaleString()}
           />
           {data.entries.length < data.totalAddresses && (
             <p className="text-xs text-slate-500">
