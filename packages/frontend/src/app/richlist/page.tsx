@@ -76,7 +76,7 @@ function CatchupBanner({
   status: Awaited<ReturnType<typeof getStatus>>;
 }) {
   const nodeTip = status?.chain.tipHeight ?? null;
-  const asOf = data.asOfHeight;
+  const asOf = data.asOfHeight ?? -1;
   if (nodeTip === null || asOf < 0) return null;
   const behind = Math.max(0, nodeTip - asOf);
   if (behind <= 6) return null; // At tip, no banner needed
@@ -107,8 +107,14 @@ function RichlistView({
 }: {
   data: NonNullable<Awaited<ReturnType<typeof getRichlist>>>;
 }) {
-  const totalSats = BigInt(data.totalSats);
-  const indexedSupplySats = BigInt(data.indexedSupplySats);
+  // Tolerate both the current backend response shape
+  // (indexedSupplySats) and the legacy shape (supplyTotalSats) so
+  // a frontend-ahead-of-backend deploy doesn't crash. Fall back to
+  // totalSats (sum of the entries shown) as a last resort.
+  const totalSats = safeBigInt(data.totalSats);
+  const indexedSupplySats = safeBigInt(
+    data.indexedSupplySats ?? data.supplyTotalSats ?? data.totalSats,
+  );
   const totalTdc = formatTdc(totalSats);
   const pctOfIndexed = indexedSupplySats > 0n
     ? Number((totalSats * 10000n) / indexedSupplySats) / 100
@@ -214,10 +220,10 @@ function RichlistView({
 }
 
 function RichlistRow({ entry }: { entry: RichlistEntry }) {
-  const total = BigInt(entry.balanceSats);
-  const hash = BigInt(entry.hashProtectedSats);
-  const exposed = BigInt(entry.pubkeyExposedSats);
-  const bare = BigInt(entry.bareP2pkSats);
+  const total = safeBigInt(entry.balanceSats);
+  const hash = safeBigInt(entry.hashProtectedSats);
+  const exposed = safeBigInt(entry.pubkeyExposedSats);
+  const bare = safeBigInt(entry.bareP2pkSats);
 
   const pctHash = total > 0n ? Number((hash * 10000n) / total) / 100 : 0;
   const pctExposed = total > 0n ? Number((exposed * 10000n) / total) / 100 : 0;
@@ -292,6 +298,20 @@ function shortAddr(addr: string): string {
 function formatTdc(sats: bigint): string {
   const intPart = sats / SATOSHIS_PER_COIN;
   return Number(intPart).toLocaleString();
+}
+
+/**
+ * BigInt() throws on undefined/null/garbage. Wrap it so a missing
+ * or malformed field from the backend returns 0n instead of crashing
+ * the entire page with 'Application error: a server-side exception'.
+ */
+function safeBigInt(value: string | number | undefined | null): bigint {
+  if (value === undefined || value === null) return 0n;
+  try {
+    return BigInt(value);
+  } catch {
+    return 0n;
+  }
 }
 
 // Whale-distinguishing palette. Strict: no green/emerald/amber/rose
