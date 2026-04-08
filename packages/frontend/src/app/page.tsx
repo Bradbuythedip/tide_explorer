@@ -8,16 +8,23 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
-      <header className="mb-12">
-        <h1 className="text-4xl font-semibold tracking-tight text-slate-100">
-          The Tidecoin block explorer that knows every signature on chain is
-          Falcon-512.
-        </h1>
-        <p className="mt-3 max-w-2xl text-slate-400">
-          Including the genesis coinbase the node itself mislabels as{" "}
-          <span className="mono text-threat-bare">nonstandard</span>. Search a
-          block height, txid, or address from the bar above.
-        </p>
+      <header className="mb-12 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+        <img
+          src="/tidecoin-coin.svg"
+          alt=""
+          width={96}
+          height={96}
+          className="shrink-0"
+        />
+        <div>
+          <h1 className="text-4xl font-semibold tracking-tight text-slate-100">
+            Tidecoin block explorer
+          </h1>
+          <p className="mt-3 max-w-2xl text-slate-400">
+            Search a block height, txid, or address from the bar above. Or
+            jump to the richlist, the quantum partition, or the genesis block.
+          </p>
+        </div>
       </header>
 
       {status === null ? (
@@ -58,10 +65,11 @@ function Kpi({ label, value }: { label: string; value: string }) {
 
 function BackendDown() {
   return (
-    <div className="rounded-lg border border-threat-bare/30 bg-threat-bare/5 p-6 text-sm text-slate-300">
-      <p className="text-threat-bare">prevblock backend not reachable.</p>
+    <div className="rounded-lg border border-surface-3 bg-surface-1 p-6 text-sm text-slate-300">
+      <p className="text-slate-200">Live chain data temporarily unavailable.</p>
       <p className="mt-2 text-slate-400">
-        Start it with <span className="mono">pnpm -C packages/backend dev</span>, then reload.
+        prevblock will show real-time KPIs here as soon as the connection to
+        the Tidecoin node is restored.
       </p>
     </div>
   );

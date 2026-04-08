@@ -17,9 +17,18 @@ export function Header() {
       <div className="mx-auto flex max-w-5xl flex-col gap-4 px-6 py-4 lg:flex-row lg:items-center">
         <Link
           href="/"
-          className="shrink-0 text-xl font-semibold tracking-tight text-slate-100 hover:text-brand-glow"
+          className="flex shrink-0 items-center gap-3 text-xl font-semibold tracking-tight text-slate-100 hover:text-brand-glow"
         >
-          prev<span className="text-brand">block</span>
+          <img
+            src="/tidecoin-coin.svg"
+            alt=""
+            width={36}
+            height={36}
+            className="shrink-0"
+          />
+          <span>
+            prev<span className="text-brand">block</span>
+          </span>
         </Link>
         <div className="lg:flex-1 lg:px-6">
           <SearchBar />

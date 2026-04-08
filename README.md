@@ -1,18 +1,8 @@
 # prevblock
 
-The post-quantum block explorer for [Tidecoin](https://github.com/tidecoin/tidecoin).
+The Tidecoin block explorer. Lives at **prevblock.com**.
 
-Named after the dev's bitcointalk handle. Lives at **prevblock.com**.
-
-## Why it exists
-
-Tidecoin is a Bitcoin Core 0.18.3 fork where every signature on the chain is
-Falcon-512. It is the only live mainnet doing this today. Every other block
-explorer — including the node's own `getrawtransaction` output — misclassifies
-the genesis coinbase as `nonstandard` because upstream's `Solver()` was never
-updated to understand 898-byte public keys (see
-[`docs/tidecoin-protocol.md`](docs/tidecoin-protocol.md) §3.1). prevblock is
-the first explorer that actually knows what it's looking at.
+Built by prevblock, the original Tidecoin creator on bitcointalk.
 
 ## Status
 

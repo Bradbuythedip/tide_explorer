@@ -82,11 +82,10 @@ export const GLOSSARY = {
   "bare-p2pk": {
     label: "bare P2PK",
     short:
-      "An output that stores the Falcon public key directly instead of its hash. The genesis coinbase is the canonical example. Same residual security as a pubkey-exposed address.",
+      "A Tidecoin output that stores the Falcon public key directly in the scriptPubKey, followed by OP_CHECKSIG. The genesis coinbase is the canonical example.",
     long:
-      "A bare P2PK-Falcon output has the shape `OP_PUSHDATA2 0x8203 <898-byte pubkey> OP_CHECKSIG`. Tidecoin's own script classifier can't recognise this form — upstream's MatchPayToPubkey checks for a single-byte push length, but 898 cannot fit in one byte, so the node reports every bare-P2PK-Falcon output as 'nonstandard'. prevblock's indexer recognises the shape directly. From a threat perspective, bare P2PK is identical to pubkey-exposed: Falcon-512 is the only remaining barrier.",
+      "A bare P2PK-Falcon output has the shape `OP_PUSHDATA2 0x8203 <898-byte pubkey> OP_CHECKSIG`. From a threat perspective, bare P2PK is equivalent to a pubkey-exposed address: the Falcon public key is on chain from the moment the output exists, so Falcon-512 is the only remaining barrier to spending.",
     sources: [
-      "docs/source-extracts/script/standard.cpp:46",
       "docs/tidecoin-protocol.md#31-genesis-output-bare-p2pk-falcon",
     ],
     see: ["pubkey-exposed", "falcon-512", "p2pk-falcon"],

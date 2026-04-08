@@ -19,12 +19,11 @@ export async function registerRichlistRoutes(
   app: FastifyInstance,
 ): Promise<void> {
   const QuerySchema = z.object({
-    min_tdc: z.coerce.number().nonnegative().default(1000),
-    // Default high enough to show every >=1000 TDC address on the
-    // chain today (~hundreds, well below the cap). The 10000 cap is
-    // a safety rail against an accidental "limit=2147483647" that
+    min_tdc: z.coerce.number().nonnegative().default(0),
+    // Default to top 500 addresses by balance. The 10000 cap is a
+    // safety rail against an accidental 'limit=2147483647' that
     // would try to materialise the whole UTXO set in memory.
-    limit: z.coerce.number().int().min(1).max(10000).default(5000),
+    limit: z.coerce.number().int().min(1).max(10000).default(500),
   });
 
   app.get("/api/v1/richlist", async (req, reply) => {

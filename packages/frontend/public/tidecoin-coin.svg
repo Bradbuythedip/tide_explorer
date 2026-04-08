@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Tidecoin">
+  <defs>
+    <radialGradient id="tdc-coin-body" cx="50%" cy="35%" r="75%">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="40%" stop-color="#f5b642"/>
+      <stop offset="75%" stop-color="#c77a1e"/>
+      <stop offset="100%" stop-color="#8b4a10"/>
+    </radialGradient>
+    <linearGradient id="tdc-letter" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="50%" stop-color="#f5b642"/>
+      <stop offset="100%" stop-color="#a85d15"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer black ring -->
+  <circle cx="100" cy="100" r="96" fill="#0a0a0a"/>
+  <!-- Coin body with gold radial gradient -->
+  <circle cx="100" cy="100" r="86" fill="url(#tdc-coin-body)"/>
+  <!-- Inner thin black border for that minted-coin look -->
+  <circle cx="100" cy="100" r="80" fill="none" stroke="#0a0a0a" stroke-width="2"/>
+
+  <!-- The T letter with beveled edges, approximating the original logo -->
+  <g>
+    <!-- Drop shadow / dark outline -->
+    <path
+      d="M 52 56 L 148 56 L 148 84 L 118 84 L 118 152 L 82 152 L 82 84 L 52 84 Z"
+      fill="#0a0a0a"
+    />
+    <!-- Gold fill, slightly inset -->
+    <path
+      d="M 56 60 L 144 60 L 144 80 L 114 80 L 114 148 L 86 148 L 86 80 L 56 80 Z"
+      fill="url(#tdc-letter)"
+      stroke="#6b3508"
+      stroke-width="1.5"
+    />
+    <!-- Highlight on the crossbar top edge -->
+    <path
+      d="M 60 62 L 140 62 L 136 66 L 64 66 Z"
+      fill="#fff3b0"
+      opacity="0.6"
+    />
+  </g>
+</svg>

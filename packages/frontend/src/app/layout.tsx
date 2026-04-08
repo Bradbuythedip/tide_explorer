@@ -6,12 +6,16 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "prevblock — Tidecoin post-quantum block explorer",
+    default: "prevblock — Tidecoin block explorer",
     template: "%s · prevblock",
   },
   description:
-    "The first block explorer that actually knows what it's looking at on Tidecoin. Every signature on chain is Falcon-512. prevblock classifies outputs the node's own Solver() can't see.",
+    "Tidecoin block explorer. Search blocks, transactions, and addresses on the Tidecoin chain.",
   metadataBase: new URL("https://prevblock.com"),
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
