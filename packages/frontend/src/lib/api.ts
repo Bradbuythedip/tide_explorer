@@ -113,6 +113,27 @@ export function getRichlist(
   );
 }
 
+// ---- recent blocks (dashboard live feed) ----
+
+export interface RecentBlockSummary {
+  height: number;
+  hash: string;
+  time: number;
+  txCount: number;
+  sizeBytes: number;
+  weight: number;
+  totalOutTdc: string;
+  minerTag: string | null;
+  hasFalconInputs: boolean;
+  hasP2pkFalconOut: boolean;
+}
+
+export function getRecentBlocks(
+  limit = 15,
+): Promise<RecentBlockSummary[] | null> {
+  return get<RecentBlockSummary[]>(`/api/v1/blocks/recent?limit=${limit}`);
+}
+
 // ---- quantum supply ----
 
 export interface QuantumSupplyResponse {

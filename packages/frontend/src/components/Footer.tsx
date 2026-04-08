@@ -15,8 +15,7 @@ export function Footer() {
     <footer className="mt-24 border-t border-surface-2 px-6 py-8 text-xs text-slate-600">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4">
         <p>
-          prevblock · Tidecoin block explorer · built by prevblock, the
-          original Tidecoin creator on bitcointalk ·{" "}
+          prevblock · Tidecoin block explorer ·{" "}
           <button
             type="button"
             onClick={openOnboarding}

@@ -1,10 +1,15 @@
 import Link from "next/link";
-import { getStatus } from "@/lib/api";
+import { getRecentBlocks, getStatus } from "@/lib/api";
+import { LiveKpis } from "@/components/LiveKpis";
+import { RecentBlocks } from "@/components/RecentBlocks";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const status = await getStatus();
+  const [status, recent] = await Promise.all([
+    getStatus(),
+    getRecentBlocks(15),
+  ]);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
@@ -30,18 +35,25 @@ export default async function HomePage() {
       {status === null ? (
         <BackendDown />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Kpi label="Tip height" value={status.chain.tipHeight.toLocaleString()} />
-          <Kpi
-            label="Supply (TDC)"
-            value={Number(status.supply.totalTdc).toLocaleString(undefined, {
-              maximumFractionDigits: 0,
-            })}
-          />
-          <Kpi label="Mempool txs" value={status.mempool.txCount.toString()} />
-          <Kpi label="Peers" value={status.network.connections.toString()} />
-        </div>
+        <LiveKpis
+          initial={{
+            tipHeight: status.chain.tipHeight,
+            supplyTdc: status.supply.totalTdc,
+            mempoolTxCount: status.mempool.txCount,
+            peers: status.network.connections,
+          }}
+        />
       )}
+
+      <section className="mt-10">
+        {recent === null ? (
+          <div className="rounded-lg border border-surface-3 bg-surface-1 p-6 text-sm text-slate-500">
+            Recent blocks temporarily unavailable.
+          </div>
+        ) : (
+          <RecentBlocks initial={recent} maxRows={15} />
+        )}
+      </section>
 
       <nav className="mt-12 flex flex-wrap gap-4 text-sm">
         <Link href="/genesis">Genesis</Link>
@@ -51,15 +63,6 @@ export default async function HomePage() {
         <Link href="/threat-model">Threat model</Link>
       </nav>
     </main>
-  );
-}
-
-function Kpi({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-surface-3 bg-surface-1 p-5">
-      <div className="text-xs uppercase tracking-wider text-slate-500">{label}</div>
-      <div className="mono mt-2 text-2xl font-semibold text-slate-100">{value}</div>
-    </div>
   );
 }
 
