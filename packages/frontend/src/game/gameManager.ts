@@ -33,25 +33,8 @@ const BOT_PERSONALITIES: BotPersonality[] = [
   "TAG", "LAG", "rock", "calling-station", "balanced",
 ];
 
-/** Convert a CardStr like "As" to a CardDisplay object. */
 function parseCard(s: CardStr): CardDisplay {
-  return {
-    rank: s[0] as Rank,
-    suit: s[1] as Suit,
-    str: s,
-  };
-}
-
-/** Convert poker-ts Card object to our CardDisplay. */
-function pokerTsCardToDisplay(c: { rank: string; suit: string }): CardDisplay {
-  const suitMap: Record<string, Suit> = {
-    spades: "s", hearts: "h", diamonds: "d", clubs: "c",
-  };
-  return {
-    rank: c.rank as Rank,
-    suit: suitMap[c.suit] ?? ("s" as Suit),
-    str: `${c.rank}${suitMap[c.suit] ?? "s"}` as CardStr,
-  };
+  return { rank: s[0] as Rank, suit: s[1] as Suit, str: s };
 }
 
 export type GameEventCallback = (state: GameState) => void;
@@ -70,6 +53,8 @@ export class GameManager {
   private _holeCards: (CardDisplay[] | null)[] = [];
   private _communityCards: CardDisplay[] = [];
   private _bustedSeats: Set<number> = new Set();
+  /** Guard against overlapping bot loops. */
+  private _botLoopRunning = false;
 
   constructor() {
     this.table = new Table(
@@ -82,10 +67,9 @@ export class GameManager {
     this.onUpdate = cb;
   }
 
-  /** Seat the human and 5 bots, then emit initial state. */
   initialize(humanName: string, buyIn: number = DEFAULT_BUY_IN) {
     this.playerNames = [humanName];
-    this.botPersonalities = [null]; // seat 0 = human
+    this.botPersonalities = [null];
 
     for (let i = 0; i < 5; i++) {
       const personality = BOT_PERSONALITIES[i]!;
@@ -101,9 +85,7 @@ export class GameManager {
     this.emitState();
   }
 
-  /** Start a new hand. */
   startHand() {
-    // Re-buy busted players (bots auto re-buy)
     const seats = this.table.seats();
     for (let i = 1; i < NUM_SEATS; i++) {
       if (this._bustedSeats.has(i)) {
@@ -112,10 +94,8 @@ export class GameManager {
       }
     }
 
-    // Check human is still in
     if (this._bustedSeats.has(0)) return;
 
-    // Shuffle and prepare deck
     this._shuffledDeck = secureShuffle(buildDeck());
     this._dealIndex = 0;
     this._holeCards = new Array(NUM_SEATS).fill(null);
@@ -127,10 +107,8 @@ export class GameManager {
     this.table.startHand();
     this.phase = "preflop";
 
-    // Deal hole cards
     for (let i = 0; i < NUM_SEATS; i++) {
-      const seat = seats[i];
-      if (seat !== null && !this._bustedSeats.has(i)) {
+      if (seats[i] !== null && !this._bustedSeats.has(i)) {
         this._holeCards[i] = [
           parseCard(this._shuffledDeck[this._dealIndex++]!),
           parseCard(this._shuffledDeck[this._dealIndex++]!),
@@ -139,33 +117,201 @@ export class GameManager {
     }
 
     this.emitState();
-
-    // If it's a bot's turn, auto-act
-    this.runBotActionsIfNeeded();
+    this.pump();
   }
 
-  /** Human takes an action. */
   humanAction(action: PlayerAction, betSize?: number) {
     if (this.phase === "waiting" || this.phase === "hand_complete" || this.phase === "showdown") return;
+    if (!this.table.isHandInProgress() || !this.table.isBettingRoundInProgress()) return;
 
     try {
-      const playerToAct = this.table.playerToAct();
-      if (playerToAct !== 0) return; // Not human's turn
-
+      if (this.table.playerToAct() !== 0) return;
       this.table.actionTaken(action, betSize);
-
-      if (action === "fold") {
-        this.foldedSeats.add(0);
-      }
-
-      this.emitState();
-      this.advanceIfNeeded();
+      if (action === "fold") this.foldedSeats.add(0);
     } catch (e) {
       console.error("[GameManager] humanAction error:", e);
+      return;
+    }
+
+    this.emitState();
+    this.pump();
+  }
+
+  /**
+   * Central state-machine driver. Call after any state change.
+   * Handles: bot actions, street transitions, showdown.
+   * Uses a single async loop with a re-entry guard.
+   */
+  private pump() {
+    if (this._botLoopRunning) return;
+    this._botLoopRunning = true;
+    this.pumpLoop().finally(() => {
+      this._botLoopRunning = false;
+    });
+  }
+
+  private async pumpLoop() {
+    // Safety: limit iterations to prevent infinite loops if poker-ts
+    // gets into an unexpected state.
+    const MAX_ITERS = 200;
+    let iters = 0;
+
+    while (this.table.isHandInProgress() && iters++ < MAX_ITERS) {
+
+      // ---- Betting round in progress ----
+      if (this.table.isBettingRoundInProgress()) {
+        const pta = this.table.playerToAct();
+        if (pta === 0) {
+          // Human's turn — stop and wait for humanAction()
+          this.emitState();
+          return;
+        }
+
+        // Bot's turn
+        await delay(400 + Math.random() * 300);
+        this.executeBotAction(pta);
+        this.emitState();
+        continue;
+      }
+
+      // ---- Betting round finished ----
+      if (this.table.areBettingRoundsCompleted()) {
+        this.doShowdown();
+        return;
+      }
+
+      // Deal next street
+      this.dealNextStreet();
+      this.emitState();
+      // loop back to handle new betting round
+    }
+
+    if (iters >= MAX_ITERS) {
+      console.error("[GameManager] pumpLoop hit iteration limit — forcing showdown");
+      try { this.doShowdown(); } catch { /* fallback */ }
     }
   }
 
-  /** Get current snapshot for UI. */
+  private executeBotAction(seatIndex: number) {
+    const personality = this.botPersonalities[seatIndex];
+    if (!personality) return;
+
+    let la;
+    try {
+      la = this.table.legalActions();
+    } catch {
+      return;
+    }
+
+    const holeCards = this._holeCards[seatIndex] ?? [];
+    const pots = this.table.pots();
+    const potSize = pots.reduce((sum, p) => sum + p.size, 0);
+    const seat = this.table.handPlayers()[seatIndex];
+
+    const decision = decideBotAction({
+      personality,
+      holeCards,
+      communityCards: this._communityCards,
+      legalActions: la.actions as PlayerAction[],
+      minBet: la.chipRange?.min ?? 0,
+      maxBet: la.chipRange?.max ?? 0,
+      potSize,
+      stack: seat?.stack ?? 0,
+      betToCall: seat?.betSize ?? 0,
+    });
+
+    try {
+      this.table.actionTaken(decision.action, decision.betSize);
+      if (decision.action === "fold") this.foldedSeats.add(seatIndex);
+      return;
+    } catch { /* primary action failed, try fallbacks */ }
+
+    // Fallback: pick the simplest legal action
+    const fallbacks: PlayerAction[] = ["check", "call", "fold"];
+    for (const fb of fallbacks) {
+      if (la.actions.includes(fb)) {
+        try {
+          this.table.actionTaken(fb);
+          if (fb === "fold") this.foldedSeats.add(seatIndex);
+          return;
+        } catch { /* try next */ }
+      }
+    }
+  }
+
+  private dealNextStreet() {
+    this.table.endBettingRound();
+
+    const round = this.table.roundOfBetting();
+    if (round === "flop") {
+      this.phase = "flop";
+      this._dealIndex++; // burn
+      for (let i = 0; i < 3; i++) {
+        this._communityCards.push(parseCard(this._shuffledDeck[this._dealIndex++]!));
+      }
+    } else if (round === "turn") {
+      this.phase = "turn";
+      this._dealIndex++;
+      this._communityCards.push(parseCard(this._shuffledDeck[this._dealIndex++]!));
+    } else if (round === "river") {
+      this.phase = "river";
+      this._dealIndex++;
+      this._communityCards.push(parseCard(this._shuffledDeck[this._dealIndex++]!));
+    }
+  }
+
+  private doShowdown() {
+    this.phase = "showdown";
+    this.table.showdown();
+
+    const winnersData = this.table.winners();
+    const winners: WinnerInfo[] = [];
+
+    for (const pot of winnersData) {
+      for (const winnerGroup of pot) {
+        const [seatIndex, handInfo] = winnerGroup;
+        const idx = seatIndex as number;
+        const holeCards = this._holeCards[idx];
+        let handDesc = "Unknown hand";
+
+        if (holeCards && this._communityCards.length > 0) {
+          handDesc = describeHand(holeCards, this._communityCards);
+        } else if (handInfo && typeof handInfo === "object" && "ranking" in handInfo) {
+          const rankNames = [
+            "High Card", "Pair", "Two Pair", "Three of a Kind",
+            "Straight", "Flush", "Full House", "Four of a Kind",
+            "Straight Flush", "Royal Flush",
+          ];
+          handDesc = rankNames[(handInfo as { ranking: number }).ranking] ?? "Unknown";
+        }
+
+        winners.push({
+          seatIndex: idx,
+          playerName: this.playerNames[idx] ?? `Seat ${idx}`,
+          handDescription: handDesc,
+          amount: 0,
+        });
+      }
+    }
+
+    const pots = this.table.pots();
+    const totalPot = pots.reduce((s, p) => s + p.size, 0);
+
+    this.handResult = { winners, potSize: totalPot };
+
+    const seats = this.table.seats();
+    for (let i = 0; i < NUM_SEATS; i++) {
+      const s = seats[i];
+      if (s !== null && s.totalChips <= 0) {
+        this._bustedSeats.add(i);
+        try { this.table.standUp(i); } catch { /* already standing */ }
+      }
+    }
+
+    this.phase = "hand_complete";
+    this.emitState();
+  }
+
   getState(): GameState {
     const seats = this.table.seats();
     const handPlayers = this.table.isHandInProgress() ? this.table.handPlayers() : null;
@@ -178,11 +324,8 @@ export class GameManager {
         players.push({
           seatIndex: i,
           name: this.playerNames[i] ?? `Player ${i}`,
-          stack: 0,
-          betSize: 0,
-          totalChips: 0,
-          holeCards: null,
-          folded: true,
+          stack: 0, betSize: 0, totalChips: 0,
+          holeCards: null, folded: true,
           isBot: i !== 0,
           personality: this.botPersonalities[i] ?? undefined,
           isAllIn: false,
@@ -195,8 +338,6 @@ export class GameManager {
       const isInHand = hp !== null && hp !== undefined;
       const folded = this.foldedSeats.has(i) || (!isInHand && this.table.isHandInProgress());
 
-      // Only show hole cards to human (seat 0) during play,
-      // or to everyone at showdown
       let visibleCards: CardDisplay[] | null = null;
       if (this._holeCards[i]) {
         if (i === 0 || this.phase === "showdown" || this.phase === "hand_complete") {
@@ -223,8 +364,7 @@ export class GameManager {
     let legalActions: LegalActions | null = null;
     if (this.table.isHandInProgress() && this.table.isBettingRoundInProgress()) {
       try {
-        const pta = this.table.playerToAct();
-        if (pta === 0) {
+        if (this.table.playerToAct() === 0) {
           const la = this.table.legalActions();
           legalActions = {
             actions: la.actions as PlayerAction[],
@@ -232,9 +372,7 @@ export class GameManager {
             maxBet: la.chipRange?.max,
           };
         }
-      } catch {
-        // Not player's turn
-      }
+      } catch { /* not player's turn */ }
     }
 
     return {
@@ -253,190 +391,17 @@ export class GameManager {
   }
 
   private emitState() {
-    if (this.onUpdate) {
-      this.onUpdate(this.getState());
-    }
+    if (this.onUpdate) this.onUpdate(this.getState());
   }
 
-  /** Run bot actions if it's a bot's turn. Returns a promise for chained delays. */
-  private async runBotActionsIfNeeded() {
-    while (
-      this.table.isHandInProgress() &&
-      this.table.isBettingRoundInProgress()
-    ) {
-      const pta = this.table.playerToAct();
-      if (pta === 0) break; // Human's turn
-
-      // Delay for visual pacing
-      await delay(400 + Math.random() * 300);
-
-      this.executeBotAction(pta);
-      this.emitState();
-    }
-
-    // After bots finish, check if we need to advance
-    this.advanceIfNeeded();
-  }
-
-  private executeBotAction(seatIndex: number) {
-    const personality = this.botPersonalities[seatIndex];
-    if (!personality) return;
-
-    const la = this.table.legalActions();
-    const holeCards = this._holeCards[seatIndex] ?? [];
-    const pots = this.table.pots();
-    const potSize = pots.reduce((sum, p) => sum + p.size, 0);
-    const seat = this.table.handPlayers()[seatIndex];
-
-    const decision = decideBotAction({
-      personality,
-      holeCards,
-      communityCards: this._communityCards,
-      legalActions: la.actions as PlayerAction[],
-      minBet: la.chipRange?.min ?? 0,
-      maxBet: la.chipRange?.max ?? 0,
-      potSize,
-      stack: seat?.stack ?? 0,
-      betToCall: seat?.betSize ?? 0,
-    });
-
-    try {
-      this.table.actionTaken(decision.action, decision.betSize);
-      if (decision.action === "fold") {
-        this.foldedSeats.add(seatIndex);
-      }
-    } catch (e) {
-      // If the chosen action fails, try simpler fallbacks
-      try {
-        if (la.actions.includes("check")) {
-          this.table.actionTaken("check");
-        } else if (la.actions.includes("call")) {
-          this.table.actionTaken("call");
-        } else {
-          this.table.actionTaken("fold");
-          this.foldedSeats.add(seatIndex);
-        }
-      } catch {
-        // Last resort
-        try {
-          this.table.actionTaken("fold");
-          this.foldedSeats.add(seatIndex);
-        } catch { /* seat might already be out */ }
-      }
-    }
-  }
-
-  private advanceIfNeeded() {
-    if (!this.table.isHandInProgress()) return;
-
-    // Check if betting round is complete
-    if (!this.table.isBettingRoundInProgress()) {
-      if (this.table.areBettingRoundsCompleted()) {
-        // Go to showdown
-        this.doShowdown();
-        return;
-      }
-
-      // Deal next street
-      this.dealNextStreet();
-      this.emitState();
-
-      // Run bots on new street
-      this.runBotActionsIfNeeded();
-    }
-  }
-
-  private dealNextStreet() {
-    this.table.endBettingRound();
-
-    const round = this.table.roundOfBetting();
-    if (round === "flop") {
-      this.phase = "flop";
-      // Burn one, deal three
-      this._dealIndex++;
-      for (let i = 0; i < 3; i++) {
-        this._communityCards.push(parseCard(this._shuffledDeck[this._dealIndex++]!));
-      }
-    } else if (round === "turn") {
-      this.phase = "turn";
-      this._dealIndex++;
-      this._communityCards.push(parseCard(this._shuffledDeck[this._dealIndex++]!));
-    } else if (round === "river") {
-      this.phase = "river";
-      this._dealIndex++;
-      this._communityCards.push(parseCard(this._shuffledDeck[this._dealIndex++]!));
-    }
-  }
-
-  private doShowdown() {
-    this.phase = "showdown";
-    this.table.showdown();
-
-    const winnersData = this.table.winners();
-    const winners: WinnerInfo[] = [];
-
-    // winners() returns a 3D array: [pot][winner group][seat, hand info, cards]
-    for (const pot of winnersData) {
-      for (const winnerGroup of pot) {
-        const [seatIndex, handInfo] = winnerGroup;
-        const idx = seatIndex as number;
-        const holeCards = this._holeCards[idx];
-        let handDesc = "Unknown hand";
-
-        if (holeCards && this._communityCards.length > 0) {
-          handDesc = describeHand(holeCards, this._communityCards);
-        } else if (handInfo && typeof handInfo === "object" && "ranking" in handInfo) {
-          const rankNames = [
-            "High Card", "Pair", "Two Pair", "Three of a Kind",
-            "Straight", "Flush", "Full House", "Four of a Kind",
-            "Straight Flush", "Royal Flush",
-          ];
-          handDesc = rankNames[(handInfo as { ranking: number }).ranking] ?? "Unknown";
-        }
-
-        winners.push({
-          seatIndex: idx,
-          playerName: this.playerNames[idx] ?? `Seat ${idx}`,
-          handDescription: handDesc,
-          amount: 0, // poker-ts doesn't expose individual pot awards easily
-        });
-      }
-    }
-
-    const pots = this.table.pots();
-    const totalPot = pots.reduce((s, p) => s + p.size, 0);
-
-    this.handResult = {
-      winners,
-      potSize: totalPot,
-    };
-
-    // Check for busted players
-    const seats = this.table.seats();
-    for (let i = 0; i < NUM_SEATS; i++) {
-      const s = seats[i];
-      if (s !== null && s.totalChips <= 0) {
-        this._bustedSeats.add(i);
-        try { this.table.standUp(i); } catch { /* already standing */ }
-      }
-    }
-
-    this.phase = "hand_complete";
-    this.emitState();
-  }
-
-  /** Check if human is busted. */
   isHumanBusted(): boolean {
     return this._bustedSeats.has(0);
   }
 
-  /** Get human's current stack. */
   getHumanStack(): number {
-    const seats = this.table.seats();
-    return seats[0]?.totalChips ?? 0;
+    return this.table.seats()[0]?.totalChips ?? 0;
   }
 
-  /** Re-buy the human player. */
   humanRebuy(amount: number) {
     if (this._bustedSeats.has(0)) {
       this.table.sitDown(0, amount);
