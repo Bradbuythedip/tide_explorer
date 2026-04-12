@@ -19,7 +19,6 @@ export function PokerTable() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [started, setStarted] = useState(false);
 
-  // Initialize game manager once
   useEffect(() => {
     const gm = new GameManager();
     gm.setOnUpdate((state) => setGameState({ ...state }));
@@ -39,16 +38,12 @@ export function PokerTable() {
   const handleNextHand = useCallback(() => {
     const gm = gmRef.current;
     if (!gm) return;
-    if (gm.isHumanBusted()) {
-      gm.humanRebuy(DEFAULT_BUY_IN);
-    }
+    if (gm.isHumanBusted()) gm.humanRebuy(DEFAULT_BUY_IN);
     gm.startHand();
   }, []);
 
   const handleRebuy = useCallback(() => {
-    const gm = gmRef.current;
-    if (!gm) return;
-    gm.humanRebuy(DEFAULT_BUY_IN);
+    gmRef.current?.humanRebuy(DEFAULT_BUY_IN);
   }, []);
 
   if (!gameState) {
@@ -62,28 +57,44 @@ export function PokerTable() {
   const potSize = gameState.pots.reduce((s, p) => s + p.size, 0);
 
   return (
-    <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start lg:gap-8">
+    <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:gap-8">
       {/* Main game area */}
-      <div className="flex-1 w-full max-w-3xl">
-        {/* Table */}
-        <div className="relative mx-auto" style={{ height: 480, maxWidth: 720 }}>
-          {/* Felt surface */}
+      <div className="flex-1 min-w-0">
+        {/* Table container — wider aspect ratio for a proper ellipse */}
+        <div className="relative mx-auto" style={{ height: 540, maxWidth: 800 }}>
+          {/* Outer rail */}
           <div
-            className="absolute inset-4 rounded-[50%] border-4 border-yellow-900/60 shadow-2xl"
+            className="absolute shadow-2xl"
             style={{
-              background:
-                "radial-gradient(ellipse at center, #1a5c3a 0%, #0f3d26 60%, #0a2e1c 100%)",
+              top: "10%",
+              left: "8%",
+              right: "8%",
+              bottom: "14%",
+              borderRadius: "50%",
+              background: "#3a2010",
+              padding: 6,
             }}
-          />
+          >
+            {/* Felt surface */}
+            <div
+              className="h-full w-full"
+              style={{
+                borderRadius: "50%",
+                background:
+                  "radial-gradient(ellipse at 50% 45%, #1e7a4a 0%, #145a35 50%, #0d3d24 100%)",
+                boxShadow: "inset 0 2px 20px rgba(0,0,0,0.4)",
+              }}
+            />
+          </div>
 
-          {/* Community cards + pot in center */}
-          <div className="absolute left-1/2 top-[40%] z-10 -translate-x-1/2 -translate-y-1/2 text-center">
+          {/* Community cards + pot — centered on the felt */}
+          <div className="absolute left-1/2 top-[42%] z-10 -translate-x-1/2 -translate-y-1/2 text-center">
             <PotDisplay pots={gameState.pots} />
-            <div className="mt-2">
+            <div className="mt-3">
               <CommunityCards cards={gameState.communityCards} />
             </div>
             {gameState.phase !== "waiting" && (
-              <div className="mt-2 text-xs uppercase tracking-wider text-emerald-400/60">
+              <div className="mt-2 text-[10px] uppercase tracking-widest text-emerald-300/50">
                 {gameState.phase === "hand_complete" ? "showdown" : gameState.phase}
               </div>
             )}
@@ -108,12 +119,12 @@ export function PokerTable() {
             />
           )}
 
-          {/* Start game overlay */}
+          {/* Deal button */}
           {!started && (
-            <div className="absolute inset-0 z-30 flex items-center justify-center rounded-[50%]">
+            <div className="absolute inset-0 z-30 flex items-center justify-center">
               <button
                 onClick={startHand}
-                className="rounded-xl bg-brand px-8 py-4 text-lg font-semibold text-white shadow-lg transition hover:bg-brand-dim hover:scale-105"
+                className="rounded-xl bg-brand px-10 py-4 text-lg font-semibold text-white shadow-2xl transition hover:bg-brand-dim hover:scale-105 active:scale-95"
               >
                 Deal
               </button>
@@ -122,7 +133,7 @@ export function PokerTable() {
         </div>
 
         {/* Action bar */}
-        <div className="mt-2">
+        <div className="mt-4">
           <ActionBar
             legalActions={gameState.legalActions}
             potSize={potSize}
@@ -130,14 +141,13 @@ export function PokerTable() {
           />
         </div>
 
-        {/* Hand counter */}
         <div className="mt-2 text-center text-xs text-slate-600">
           Hand #{gameState.handNumber}
         </div>
       </div>
 
-      {/* Chip panel — sidebar */}
-      <div className="w-full max-w-[220px] shrink-0">
+      {/* Chip panel sidebar */}
+      <div className="w-full max-w-[200px] shrink-0 xl:mt-8">
         <ChipPanel
           chipStack={gmRef.current?.getHumanStack() ?? DEFAULT_BUY_IN}
           handsPlayed={gameState.handNumber}
