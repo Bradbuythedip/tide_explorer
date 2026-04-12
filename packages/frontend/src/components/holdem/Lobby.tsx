@@ -17,31 +17,57 @@ export function Lobby({ onJoin }: { onJoin: (roomId: string) => void }) {
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState<string | null>(null);
+
   const refresh = useCallback(async () => {
     try {
       const res = await fetch(`${API}/rooms`);
+      if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
       setRooms((data as { rooms: RoomSummary[] }).rooms ?? []);
-    } catch { /* offline */ }
+      setError(null);
+    } catch (e) {
+      setError("Cannot reach game server");
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
 
   const quickJoin = useCallback(async () => {
+    setError(null);
     try {
-      const res = await fetch(`${API}/quick-join`, { method: "POST" });
+      const res = await fetch(`${API}/quick-join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
-      onJoin((data as { roomId: string }).roomId);
-    } catch { /* offline */ }
+      const id = (data as { roomId: string }).roomId;
+      if (id) onJoin(id);
+      else throw new Error("No roomId returned");
+    } catch (e) {
+      setError("Failed to join. Is the backend running?");
+    }
   }, [onJoin]);
 
   const createRoom = useCallback(async () => {
+    setError(null);
     try {
-      const res = await fetch(`${API}/rooms`, { method: "POST" });
+      const res = await fetch(`${API}/rooms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
       const data = await res.json();
-      onJoin((data as { roomId: string }).roomId);
-    } catch { /* offline */ }
+      const id = (data as { roomId: string }).roomId;
+      if (id) onJoin(id);
+      else throw new Error("No roomId returned");
+    } catch (e) {
+      setError("Failed to create table. Is the backend running?");
+    }
   }, [onJoin]);
 
   return (
@@ -67,6 +93,13 @@ export function Lobby({ onJoin }: { onJoin: (roomId: string) => void }) {
           Refresh
         </button>
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-400">
+          {error}
+        </div>
+      )}
 
       {/* Room list */}
       {loading ? (
