@@ -53,8 +53,13 @@ export class GameManager {
   private _holeCards: (CardDisplay[] | null)[] = [];
   private _communityCards: CardDisplay[] = [];
   private _bustedSeats: Set<number> = new Set();
-  /** Guard against overlapping bot loops. */
-  private _botLoopRunning = false;
+
+  /**
+   * Cancellation token: incremented every time pump() is called.
+   * The running pumpLoop checks this before each action — if the
+   * token changed, the loop is stale and exits. No guard flag needed.
+   */
+  private _pumpGeneration = 0;
 
   constructor() {
     this.table = new Table(
@@ -138,32 +143,22 @@ export class GameManager {
   }
 
   /**
-   * Central state-machine driver. Call after any state change.
-   *
-   * Schedules the async pump loop via setTimeout(0) so it always
-   * starts on a fresh call stack. This avoids a microtask race where
-   * humanAction() calls pump() before a previous pumpLoop's .finally()
-   * has cleared the _botLoopRunning flag.
+   * Kick off the state-machine driver. Each call cancels any previous
+   * loop by incrementing the generation counter, then starts a fresh one.
    */
   private pump() {
-    // Use setTimeout to guarantee the previous loop's .finally() has
-    // settled before we check the guard flag.
-    setTimeout(() => this.startPumpIfIdle(), 0);
+    const gen = ++this._pumpGeneration;
+    // Small delay to batch synchronous state updates before the loop runs.
+    setTimeout(() => this.pumpLoop(gen), 10);
   }
 
-  private startPumpIfIdle() {
-    if (this._botLoopRunning) return;
-    this._botLoopRunning = true;
-    this.pumpLoop().finally(() => {
-      this._botLoopRunning = false;
-    });
-  }
-
-  private async pumpLoop() {
+  private async pumpLoop(gen: number) {
     const MAX_ITERS = 200;
     let iters = 0;
 
     while (this.table.isHandInProgress() && iters++ < MAX_ITERS) {
+      // If a newer pump() was called, this loop is stale — bail out.
+      if (gen !== this._pumpGeneration) return;
 
       // ---- Betting round in progress ----
       if (this.table.isBettingRoundInProgress()) {
@@ -174,15 +169,14 @@ export class GameManager {
           return;
         }
 
-        // Bot's turn
+        // Bot's turn — wait then act
         await delay(350 + Math.random() * 250);
+        if (gen !== this._pumpGeneration) return;
 
-        // Re-check state: human might have acted during the delay
-        // (shouldn't happen, but be defensive)
+        // Verify the table state is still consistent
         if (!this.table.isHandInProgress() || !this.table.isBettingRoundInProgress()) break;
-        if (this.table.playerToAct() !== pta) continue;
 
-        this.executeBotAction(pta);
+        this.executeBotAction(this.table.playerToAct());
         this.emitState();
         continue;
       }
@@ -236,11 +230,10 @@ export class GameManager {
       this.table.actionTaken(decision.action, decision.betSize);
       if (decision.action === "fold") this.foldedSeats.add(seatIndex);
       return;
-    } catch { /* primary action failed, try fallbacks */ }
+    } catch { /* primary action failed */ }
 
     // Fallback: pick the simplest legal action
-    const fallbacks: PlayerAction[] = ["check", "call", "fold"];
-    for (const fb of fallbacks) {
+    for (const fb of ["check", "call", "fold"] as PlayerAction[]) {
       if (la.actions.includes(fb)) {
         try {
           this.table.actionTaken(fb);
@@ -337,8 +330,7 @@ export class GameManager {
           seatIndex: i,
           name: this.playerNames[i] ?? `Player ${i}`,
           stack: 0, betSize: 0, totalChips: 0,
-          holeCards: null, folded: true,
-          isBot: i !== 0,
+          holeCards: null, folded: true, isBot: i !== 0,
           personality: this.botPersonalities[i] ?? undefined,
           isAllIn: false,
         });
