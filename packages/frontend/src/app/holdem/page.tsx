@@ -4,7 +4,7 @@ import { HoldemClient } from "./client";
 export const metadata: Metadata = {
   title: "Tide Hold'em",
   description:
-    "Texas Hold'em poker on the Tidecoin network. Play against bots with TDC.",
+    "Play-money Texas Hold'em poker on prevblock.com. Practice against 5 bot opponents.",
 };
 
 /**
