@@ -128,13 +128,18 @@ export class GameManager {
   }
 
   humanAction(action: PlayerAction, betSize?: number) {
-    if (this.phase === "waiting" || this.phase === "hand_complete" || this.phase === "showdown") return;
-    if (!safeIsHandInProgress(this.table) || !safeIsBettingRoundInProgress(this.table)) return;
+    console.log("[human]", action, betSize, "phase:", this.phase);
+    if (this.phase === "waiting" || this.phase === "hand_complete" || this.phase === "showdown") { console.log("[human] rejected: wrong phase"); return; }
+    if (!safeIsHandInProgress(this.table)) { console.log("[human] rejected: hand not in progress"); return; }
+    if (!safeIsBettingRoundInProgress(this.table)) { console.log("[human] rejected: betting round not in progress"); return; }
 
     try {
-      if (this.table.playerToAct() !== 0) return;
+      const pta = this.table.playerToAct();
+      console.log("[human] playerToAct:", pta);
+      if (pta !== 0) { console.log("[human] rejected: not our turn"); return; }
       this.table.actionTaken(action, betSize);
       if (action === "fold") this.foldedSeats.add(0);
+      console.log("[human] action taken successfully, handInProgress:", safeIsHandInProgress(this.table), "bettingInProgress:", safeIsBettingRoundInProgress(this.table));
     } catch (e) {
       console.error("[GameManager] humanAction error:", e);
       return;
@@ -153,10 +158,11 @@ export class GameManager {
     const MAX_ITERS = 200;
 
     for (let i = 0; i < MAX_ITERS; i++) {
-      if (gen !== this._pumpGeneration) return;
+      if (gen !== this._pumpGeneration) { console.log("[pump] stale gen, exiting"); return; }
 
       // Hand ended (e.g. everyone folded) — finish up.
       if (!safeIsHandInProgress(this.table)) {
+        console.log("[pump] hand not in progress, finishing");
         this.finishHand();
         return;
       }
@@ -164,36 +170,43 @@ export class GameManager {
       // Betting round in progress — run next action.
       if (safeIsBettingRoundInProgress(this.table)) {
         let pta: number;
-        try { pta = this.table.playerToAct(); } catch { this.finishHand(); return; }
+        try { pta = this.table.playerToAct(); } catch (e) { console.log("[pump] playerToAct threw:", e); this.finishHand(); return; }
 
         if (pta === 0) {
           // Human's turn.
+          console.log("[pump] human's turn, pausing");
           this.emitState();
           return;
         }
 
+        console.log("[pump] bot", pta, "acting...");
         // Bot delay for visual pacing.
         await delay(350 + Math.random() * 250);
-        if (gen !== this._pumpGeneration) return;
+        if (gen !== this._pumpGeneration) { console.log("[pump] stale gen after delay"); return; }
 
         // Re-check: hand may have resolved or round may have ended.
-        if (!safeIsHandInProgress(this.table)) { this.finishHand(); return; }
-        if (!safeIsBettingRoundInProgress(this.table)) { /* fall through to advance */ }
-        else {
-          this.executeBotAction(this.table.playerToAct());
+        if (!safeIsHandInProgress(this.table)) { console.log("[pump] hand ended during delay"); this.finishHand(); return; }
+        if (!safeIsBettingRoundInProgress(this.table)) {
+          console.log("[pump] betting round ended during delay, advancing...");
+          /* fall through to advance */
+        } else {
+          const currentPta = this.table.playerToAct();
+          console.log("[pump] executing bot action for seat", currentPta);
+          this.executeBotAction(currentPta);
           this.emitState();
 
           // Bot action may have ended the hand (everyone folded).
-          if (!safeIsHandInProgress(this.table)) { this.finishHand(); return; }
+          if (!safeIsHandInProgress(this.table)) { console.log("[pump] hand ended after bot action"); this.finishHand(); return; }
           continue;
         }
       }
 
       // Betting round is over — advance to next street or showdown.
+      console.log("[pump] betting round over, calling endBettingRound...");
       try {
         this.table.endBettingRound();
-      } catch {
-        // endBettingRound can fail if already completed or hand ended.
+      } catch (e) {
+        console.log("[pump] endBettingRound threw:", e);
         this.finishHand();
         return;
       }
@@ -201,14 +214,17 @@ export class GameManager {
       // Check if all rounds are done.
       let allDone = false;
       try { allDone = this.table.areBettingRoundsCompleted(); } catch { allDone = true; }
+      console.log("[pump] areBettingRoundsCompleted:", allDone);
 
       if (allDone) {
-        try { this.table.showdown(); } catch { /* may already be resolved */ }
+        console.log("[pump] all rounds done, showdown");
+        try { this.table.showdown(); } catch (e) { console.log("[pump] showdown threw:", e); }
         this.finishHand();
         return;
       }
 
       // Deal community cards for the new street.
+      console.log("[pump] dealing next street");
       this.dealStreetCards();
       this.emitState();
     }
