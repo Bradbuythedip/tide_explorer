@@ -139,10 +139,19 @@ export class GameManager {
 
   /**
    * Central state-machine driver. Call after any state change.
-   * Handles: bot actions, street transitions, showdown.
-   * Uses a single async loop with a re-entry guard.
+   *
+   * Schedules the async pump loop via setTimeout(0) so it always
+   * starts on a fresh call stack. This avoids a microtask race where
+   * humanAction() calls pump() before a previous pumpLoop's .finally()
+   * has cleared the _botLoopRunning flag.
    */
   private pump() {
+    // Use setTimeout to guarantee the previous loop's .finally() has
+    // settled before we check the guard flag.
+    setTimeout(() => this.startPumpIfIdle(), 0);
+  }
+
+  private startPumpIfIdle() {
     if (this._botLoopRunning) return;
     this._botLoopRunning = true;
     this.pumpLoop().finally(() => {
@@ -151,8 +160,6 @@ export class GameManager {
   }
 
   private async pumpLoop() {
-    // Safety: limit iterations to prevent infinite loops if poker-ts
-    // gets into an unexpected state.
     const MAX_ITERS = 200;
     let iters = 0;
 
@@ -168,7 +175,13 @@ export class GameManager {
         }
 
         // Bot's turn
-        await delay(400 + Math.random() * 300);
+        await delay(350 + Math.random() * 250);
+
+        // Re-check state: human might have acted during the delay
+        // (shouldn't happen, but be defensive)
+        if (!this.table.isHandInProgress() || !this.table.isBettingRoundInProgress()) break;
+        if (this.table.playerToAct() !== pta) continue;
+
         this.executeBotAction(pta);
         this.emitState();
         continue;
@@ -183,7 +196,6 @@ export class GameManager {
       // Deal next street
       this.dealNextStreet();
       this.emitState();
-      // loop back to handle new betting round
     }
 
     if (iters >= MAX_ITERS) {
