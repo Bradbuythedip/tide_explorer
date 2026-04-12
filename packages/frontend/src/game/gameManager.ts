@@ -39,6 +39,14 @@ function parseCard(s: CardStr): CardDisplay {
 
 export type GameEventCallback = (state: GameState) => void;
 
+// Helpers to safely query poker-ts state without triggering asserts.
+function safeIsHandInProgress(table: InstanceType<typeof Table>): boolean {
+  try { return table.isHandInProgress(); } catch { return false; }
+}
+function safeIsBettingRoundInProgress(table: InstanceType<typeof Table>): boolean {
+  try { return table.isBettingRoundInProgress(); } catch { return false; }
+}
+
 export class GameManager {
   private table: InstanceType<typeof Table>;
   private playerNames: string[] = [];
@@ -53,12 +61,6 @@ export class GameManager {
   private _holeCards: (CardDisplay[] | null)[] = [];
   private _communityCards: CardDisplay[] = [];
   private _bustedSeats: Set<number> = new Set();
-
-  /**
-   * Cancellation token: incremented every time pump() is called.
-   * The running pumpLoop checks this before each action — if the
-   * token changed, the loop is stale and exits. No guard flag needed.
-   */
   private _pumpGeneration = 0;
 
   constructor() {
@@ -127,7 +129,7 @@ export class GameManager {
 
   humanAction(action: PlayerAction, betSize?: number) {
     if (this.phase === "waiting" || this.phase === "hand_complete" || this.phase === "showdown") return;
-    if (!this.table.isHandInProgress() || !this.table.isBettingRoundInProgress()) return;
+    if (!safeIsHandInProgress(this.table) || !safeIsBettingRoundInProgress(this.table)) return;
 
     try {
       if (this.table.playerToAct() !== 0) return;
@@ -142,65 +144,155 @@ export class GameManager {
     this.pump();
   }
 
-  /**
-   * Kick off the state-machine driver. Each call cancels any previous
-   * loop by incrementing the generation counter, then starts a fresh one.
-   */
   private pump() {
     const gen = ++this._pumpGeneration;
-    // Small delay to batch synchronous state updates before the loop runs.
     setTimeout(() => this.pumpLoop(gen), 10);
   }
 
   private async pumpLoop(gen: number) {
     const MAX_ITERS = 200;
-    let iters = 0;
 
-    while (this.table.isHandInProgress() && iters++ < MAX_ITERS) {
+    for (let i = 0; i < MAX_ITERS; i++) {
       if (gen !== this._pumpGeneration) return;
 
-      // ---- Betting round in progress: run bot actions ----
-      if (this.table.isBettingRoundInProgress()) {
-        const pta = this.table.playerToAct();
+      // Hand ended (e.g. everyone folded) — finish up.
+      if (!safeIsHandInProgress(this.table)) {
+        this.finishHand();
+        return;
+      }
+
+      // Betting round in progress — run next action.
+      if (safeIsBettingRoundInProgress(this.table)) {
+        let pta: number;
+        try { pta = this.table.playerToAct(); } catch { this.finishHand(); return; }
+
         if (pta === 0) {
+          // Human's turn.
           this.emitState();
-          return; // Human's turn — wait for humanAction()
+          return;
         }
 
+        // Bot delay for visual pacing.
         await delay(350 + Math.random() * 250);
         if (gen !== this._pumpGeneration) return;
-        if (!this.table.isHandInProgress() || !this.table.isBettingRoundInProgress()) continue;
 
-        this.executeBotAction(this.table.playerToAct());
-        this.emitState();
-        continue;
+        // Re-check: hand may have resolved or round may have ended.
+        if (!safeIsHandInProgress(this.table)) { this.finishHand(); return; }
+        if (!safeIsBettingRoundInProgress(this.table)) { /* fall through to advance */ }
+        else {
+          this.executeBotAction(this.table.playerToAct());
+          this.emitState();
+
+          // Bot action may have ended the hand (everyone folded).
+          if (!safeIsHandInProgress(this.table)) { this.finishHand(); return; }
+          continue;
+        }
       }
 
-      // ---- Betting round over: advance the hand ----
-      // poker-ts REQUIRES endBettingRound() to transition state.
-      // areBettingRoundsCompleted() is only true AFTER endBettingRound().
+      // Betting round is over — advance to next street or showdown.
       try {
         this.table.endBettingRound();
-      } catch (e) {
-        console.error("[GameManager] endBettingRound error:", e);
-        this.doShowdown();
+      } catch {
+        // endBettingRound can fail if already completed or hand ended.
+        this.finishHand();
         return;
       }
 
-      if (this.table.areBettingRoundsCompleted()) {
-        this.doShowdown();
+      // Check if all rounds are done.
+      let allDone = false;
+      try { allDone = this.table.areBettingRoundsCompleted(); } catch { allDone = true; }
+
+      if (allDone) {
+        try { this.table.showdown(); } catch { /* may already be resolved */ }
+        this.finishHand();
         return;
       }
 
-      // Deal community cards for the new street
+      // Deal community cards for the new street.
       this.dealStreetCards();
       this.emitState();
     }
 
-    if (iters >= MAX_ITERS) {
-      console.error("[GameManager] pumpLoop hit iteration limit");
-      try { this.doShowdown(); } catch { /* fallback */ }
+    // Safety: if we exhausted iterations, force finish.
+    console.error("[GameManager] pumpLoop exhausted iterations");
+    this.finishHand();
+  }
+
+  /**
+   * Resolve the hand regardless of how it ended (showdown, fold-out, error).
+   * Reads winners from poker-ts if available, otherwise names the last
+   * player standing.
+   */
+  private finishHand() {
+    if (this.phase === "hand_complete") return; // Already finished.
+    this.phase = "showdown";
+
+    // Try to read winners from poker-ts.
+    let rawWinners: unknown[][][] = [];
+    try { rawWinners = this.table.winners() as unknown[][][]; } catch { /* no winners data */ }
+
+    const winners: WinnerInfo[] = [];
+
+    if (rawWinners.length > 0) {
+      for (const pot of rawWinners) {
+        for (const wg of pot) {
+          const idx = wg[0] as number;
+          const holeCards = this._holeCards[idx];
+          let handDesc = "Winner";
+
+          if (holeCards && this._communityCards.length >= 5) {
+            handDesc = describeHand(holeCards, this._communityCards);
+          } else if (wg[1] && typeof wg[1] === "object" && "ranking" in (wg[1] as Record<string, unknown>)) {
+            const rankNames = [
+              "High Card", "Pair", "Two Pair", "Three of a Kind",
+              "Straight", "Flush", "Full House", "Four of a Kind",
+              "Straight Flush", "Royal Flush",
+            ];
+            handDesc = rankNames[(wg[1] as { ranking: number }).ranking] ?? "Winner";
+          }
+
+          winners.push({
+            seatIndex: idx,
+            playerName: this.playerNames[idx] ?? `Seat ${idx}`,
+            handDescription: handDesc,
+            amount: 0,
+          });
+        }
+      }
     }
+
+    // Fallback: if no winners found, find the last non-folded player.
+    if (winners.length === 0) {
+      for (let i = 0; i < NUM_SEATS; i++) {
+        if (!this.foldedSeats.has(i) && !this._bustedSeats.has(i)) {
+          winners.push({
+            seatIndex: i,
+            playerName: this.playerNames[i] ?? `Seat ${i}`,
+            handDescription: "Last player standing",
+            amount: 0,
+          });
+          break;
+        }
+      }
+    }
+
+    let totalPot = 0;
+    try { totalPot = this.table.pots().reduce((s, p) => s + p.size, 0); } catch { /* no pots */ }
+
+    this.handResult = { winners, potSize: totalPot };
+
+    // Mark busted players.
+    const seats = this.table.seats();
+    for (let i = 0; i < NUM_SEATS; i++) {
+      const s = seats[i];
+      if (s !== null && s.totalChips <= 0) {
+        this._bustedSeats.add(i);
+        try { this.table.standUp(i); } catch { /* already standing */ }
+      }
+    }
+
+    this.phase = "hand_complete";
+    this.emitState();
   }
 
   private executeBotAction(seatIndex: number) {
@@ -208,16 +300,13 @@ export class GameManager {
     if (!personality) return;
 
     let la;
-    try {
-      la = this.table.legalActions();
-    } catch {
-      return;
-    }
+    try { la = this.table.legalActions(); } catch { return; }
 
     const holeCards = this._holeCards[seatIndex] ?? [];
-    const pots = this.table.pots();
-    const potSize = pots.reduce((sum, p) => sum + p.size, 0);
-    const seat = this.table.handPlayers()[seatIndex];
+    let potSize = 0;
+    try { potSize = this.table.pots().reduce((sum, p) => sum + p.size, 0); } catch { /* 0 */ }
+    let seat: { stack: number; betSize: number } | null = null;
+    try { seat = this.table.handPlayers()[seatIndex]; } catch { /* null */ }
 
     const decision = decideBotAction({
       personality,
@@ -235,9 +324,8 @@ export class GameManager {
       this.table.actionTaken(decision.action, decision.betSize);
       if (decision.action === "fold") this.foldedSeats.add(seatIndex);
       return;
-    } catch { /* primary action failed */ }
+    } catch { /* primary failed */ }
 
-    // Fallback: pick the simplest legal action
     for (const fb of ["check", "call", "fold"] as PlayerAction[]) {
       if (la.actions.includes(fb)) {
         try {
@@ -249,12 +337,13 @@ export class GameManager {
     }
   }
 
-  /** Deal community cards for the current street (after endBettingRound). */
   private dealStreetCards() {
-    const round = this.table.roundOfBetting();
+    let round: string;
+    try { round = this.table.roundOfBetting(); } catch { return; }
+
     if (round === "flop") {
       this.phase = "flop";
-      this._dealIndex++; // burn
+      this._dealIndex++;
       for (let i = 0; i < 3; i++) {
         this._communityCards.push(parseCard(this._shuffledDeck[this._dealIndex++]!));
       }
@@ -269,74 +358,27 @@ export class GameManager {
     }
   }
 
-  private doShowdown() {
-    this.phase = "showdown";
-    this.table.showdown();
-
-    const winnersData = this.table.winners();
-    const winners: WinnerInfo[] = [];
-
-    for (const pot of winnersData) {
-      for (const winnerGroup of pot) {
-        const [seatIndex, handInfo] = winnerGroup;
-        const idx = seatIndex as number;
-        const holeCards = this._holeCards[idx];
-        let handDesc = "Unknown hand";
-
-        if (holeCards && this._communityCards.length > 0) {
-          handDesc = describeHand(holeCards, this._communityCards);
-        } else if (handInfo && typeof handInfo === "object" && "ranking" in handInfo) {
-          const rankNames = [
-            "High Card", "Pair", "Two Pair", "Three of a Kind",
-            "Straight", "Flush", "Full House", "Four of a Kind",
-            "Straight Flush", "Royal Flush",
-          ];
-          handDesc = rankNames[(handInfo as { ranking: number }).ranking] ?? "Unknown";
-        }
-
-        winners.push({
-          seatIndex: idx,
-          playerName: this.playerNames[idx] ?? `Seat ${idx}`,
-          handDescription: handDesc,
-          amount: 0,
-        });
-      }
-    }
-
-    const pots = this.table.pots();
-    const totalPot = pots.reduce((s, p) => s + p.size, 0);
-
-    this.handResult = { winners, potSize: totalPot };
-
-    const seats = this.table.seats();
-    for (let i = 0; i < NUM_SEATS; i++) {
-      const s = seats[i];
-      if (s !== null && s.totalChips <= 0) {
-        this._bustedSeats.add(i);
-        try { this.table.standUp(i); } catch { /* already standing */ }
-      }
-    }
-
-    this.phase = "hand_complete";
-    this.emitState();
-  }
-
   getState(): GameState {
     const seats = this.table.seats();
-    const handPlayers = this.table.isHandInProgress() ? this.table.handPlayers() : null;
-    const pots = this.table.isHandInProgress() ? this.table.pots() : [];
+    const handInProgress = safeIsHandInProgress(this.table);
+    const bettingInProgress = handInProgress && safeIsBettingRoundInProgress(this.table);
+
+    let handPlayers: ({ totalChips: number; stack: number; betSize: number } | null)[] | null = null;
+    let pots: { size: number; eligiblePlayers: number[] }[] = [];
+    if (handInProgress) {
+      try { handPlayers = this.table.handPlayers(); } catch { /* null */ }
+      try { pots = this.table.pots(); } catch { /* [] */ }
+    }
 
     const players: PlayerState[] = [];
     for (let i = 0; i < NUM_SEATS; i++) {
       const seat = seats[i];
       if (seat === null && !this._bustedSeats.has(i)) {
         players.push({
-          seatIndex: i,
-          name: this.playerNames[i] ?? `Player ${i}`,
+          seatIndex: i, name: this.playerNames[i] ?? `Player ${i}`,
           stack: 0, betSize: 0, totalChips: 0,
           holeCards: null, folded: true, isBot: i !== 0,
-          personality: this.botPersonalities[i] ?? undefined,
-          isAllIn: false,
+          personality: this.botPersonalities[i] ?? undefined, isAllIn: false,
         });
         continue;
       }
@@ -344,33 +386,26 @@ export class GameManager {
       const hp = handPlayers?.[i];
       const s = hp ?? seat;
       const isInHand = hp !== null && hp !== undefined;
-      const folded = this.foldedSeats.has(i) || (!isInHand && this.table.isHandInProgress());
+      const folded = this.foldedSeats.has(i) || (!isInHand && handInProgress);
 
       let visibleCards: CardDisplay[] | null = null;
       if (this._holeCards[i]) {
         if (i === 0 || this.phase === "showdown" || this.phase === "hand_complete") {
-          if (!folded || i === 0) {
-            visibleCards = this._holeCards[i];
-          }
+          if (!folded || i === 0) visibleCards = this._holeCards[i];
         }
       }
 
       players.push({
-        seatIndex: i,
-        name: this.playerNames[i] ?? `Player ${i}`,
-        stack: s?.stack ?? 0,
-        betSize: s?.betSize ?? 0,
-        totalChips: s?.totalChips ?? 0,
-        holeCards: visibleCards,
-        folded,
-        isBot: i !== 0,
+        seatIndex: i, name: this.playerNames[i] ?? `Player ${i}`,
+        stack: s?.stack ?? 0, betSize: s?.betSize ?? 0, totalChips: s?.totalChips ?? 0,
+        holeCards: visibleCards, folded, isBot: i !== 0,
         personality: this.botPersonalities[i] ?? undefined,
         isAllIn: (s?.stack ?? 0) === 0 && !folded && isInHand,
       });
     }
 
     let legalActions: LegalActions | null = null;
-    if (this.table.isHandInProgress() && this.table.isBettingRoundInProgress()) {
+    if (bettingInProgress) {
       try {
         if (this.table.playerToAct() === 0) {
           const la = this.table.legalActions();
@@ -383,18 +418,22 @@ export class GameManager {
       } catch { /* not player's turn */ }
     }
 
+    let playerToAct = -1;
+    if (bettingInProgress) {
+      try { playerToAct = this.table.playerToAct(); } catch { /* -1 */ }
+    }
+
+    let dealerSeat = 0;
+    if (handInProgress) {
+      try { dealerSeat = this.table.button(); } catch { /* 0 */ }
+    }
+
     return {
-      phase: this.phase,
-      players,
+      phase: this.phase, players,
       communityCards: this._communityCards,
       pots: pots.map((p) => ({ size: p.size, eligiblePlayers: p.eligiblePlayers })),
-      dealerSeat: this.table.isHandInProgress() ? this.table.button() : 0,
-      playerToAct: this.table.isHandInProgress() && this.table.isBettingRoundInProgress()
-        ? this.table.playerToAct()
-        : -1,
-      legalActions,
-      handResult: this.handResult,
-      handNumber: this.handNumber,
+      dealerSeat, playerToAct, legalActions,
+      handResult: this.handResult, handNumber: this.handNumber,
     };
   }
 
@@ -402,13 +441,9 @@ export class GameManager {
     if (this.onUpdate) this.onUpdate(this.getState());
   }
 
-  isHumanBusted(): boolean {
-    return this._bustedSeats.has(0);
-  }
+  isHumanBusted(): boolean { return this._bustedSeats.has(0); }
 
-  getHumanStack(): number {
-    return this.table.seats()[0]?.totalChips ?? 0;
-  }
+  getHumanStack(): number { return this.table.seats()[0]?.totalChips ?? 0; }
 
   humanRebuy(amount: number) {
     if (this._bustedSeats.has(0)) {
