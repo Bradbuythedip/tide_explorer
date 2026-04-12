@@ -1,6 +1,30 @@
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+
+  // poker-ts uses `require("crypto").randomInt()` which only exists in
+  // Node.js. In client bundles, alias `crypto` to our browser shim that
+  // provides randomInt via Web Crypto API.
+  webpack(config, { isServer }) {
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        crypto: resolve(__dirname, "src/game/crypto-shim.js"),
+      };
+      // poker-ts also uses `require("assert")` — provide a minimal
+      // browser fallback so it doesn't fail to bundle.
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        assert: resolve(__dirname, "src/game/assert-shim.js"),
+      };
+    }
+    return config;
+  },
 
   // TEMPORARY ESCAPE HATCH for the first prod deploy.
   //
