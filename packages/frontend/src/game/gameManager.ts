@@ -157,43 +157,48 @@ export class GameManager {
     let iters = 0;
 
     while (this.table.isHandInProgress() && iters++ < MAX_ITERS) {
-      // If a newer pump() was called, this loop is stale — bail out.
       if (gen !== this._pumpGeneration) return;
 
-      // ---- Betting round in progress ----
+      // ---- Betting round in progress: run bot actions ----
       if (this.table.isBettingRoundInProgress()) {
         const pta = this.table.playerToAct();
         if (pta === 0) {
-          // Human's turn — stop and wait for humanAction()
           this.emitState();
-          return;
+          return; // Human's turn — wait for humanAction()
         }
 
-        // Bot's turn — wait then act
         await delay(350 + Math.random() * 250);
         if (gen !== this._pumpGeneration) return;
-
-        // Verify the table state is still consistent
-        if (!this.table.isHandInProgress() || !this.table.isBettingRoundInProgress()) break;
+        if (!this.table.isHandInProgress() || !this.table.isBettingRoundInProgress()) continue;
 
         this.executeBotAction(this.table.playerToAct());
         this.emitState();
         continue;
       }
 
-      // ---- Betting round finished ----
+      // ---- Betting round over: advance the hand ----
+      // poker-ts REQUIRES endBettingRound() to transition state.
+      // areBettingRoundsCompleted() is only true AFTER endBettingRound().
+      try {
+        this.table.endBettingRound();
+      } catch (e) {
+        console.error("[GameManager] endBettingRound error:", e);
+        this.doShowdown();
+        return;
+      }
+
       if (this.table.areBettingRoundsCompleted()) {
         this.doShowdown();
         return;
       }
 
-      // Deal next street
-      this.dealNextStreet();
+      // Deal community cards for the new street
+      this.dealStreetCards();
       this.emitState();
     }
 
     if (iters >= MAX_ITERS) {
-      console.error("[GameManager] pumpLoop hit iteration limit — forcing showdown");
+      console.error("[GameManager] pumpLoop hit iteration limit");
       try { this.doShowdown(); } catch { /* fallback */ }
     }
   }
@@ -244,9 +249,8 @@ export class GameManager {
     }
   }
 
-  private dealNextStreet() {
-    this.table.endBettingRound();
-
+  /** Deal community cards for the current street (after endBettingRound). */
+  private dealStreetCards() {
     const round = this.table.roundOfBetting();
     if (round === "flop") {
       this.phase = "flop";
