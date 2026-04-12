@@ -8,7 +8,7 @@ import type { Config } from "tailwindcss";
  * Falcon" and nothing else. Miners, nav highlights, and decorative
  * accents must not use any of the three threat-axis colors.
  *
- * Reserved for the quantum threat axis:
+ * Reserved for the threat axis (address partitions):
  *   emerald  hash-protected Falcon (the safe bucket)
  *   amber    pubkey-exposed Falcon
  *   rose     bare P2PK-Falcon + signal anomalies
@@ -36,7 +36,7 @@ export default {
           dim: "#7c3aed", // violet-600
           glow: "#a78bfa", // violet-400
         },
-        // Quantum threat axis — RESERVED
+        // Threat axis — RESERVED
         threat: {
           safe: "#10b981", // emerald-500 — hash-protected
           exposed: "#f59e0b", // amber-500 — pubkey-exposed

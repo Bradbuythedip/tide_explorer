@@ -134,29 +134,6 @@ export function getRecentBlocks(
   return get<RecentBlockSummary[]>(`/api/v1/blocks/recent?limit=${limit}`);
 }
 
-// ---- quantum supply ----
-
-export interface QuantumSupplyResponse {
-  totalSats: string;
-  totalTdc: string;
-  hashProtectedSats: string;
-  hashProtectedTdc: string;
-  pubkeyExposedSats: string;
-  pubkeyExposedTdc: string;
-  bareP2pkSats: string;
-  bareP2pkTdc: string;
-  unclassifiedSats: string;
-  unclassifiedTdc: string;
-  asOfHeight: number;
-  nodeTipHeight: number;
-  blocksBehindTip: number;
-  isAtTip: boolean;
-}
-
-export function getQuantumSupply(): Promise<QuantumSupplyResponse | null> {
-  return get<QuantumSupplyResponse>("/api/v1/quantum/supply");
-}
-
 // ---- block ----
 
 export interface BlockSummary {

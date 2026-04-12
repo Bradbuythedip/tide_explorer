@@ -35,7 +35,9 @@ export function Header() {
         </div>
         <nav className="flex shrink-0 flex-wrap gap-4 text-sm">
           <Link href="/genesis">Genesis</Link>
-          <Link href="/quantum">Quantum</Link>
+          <Link href="/holdem" className="text-brand-glow">
+            Tide Hold&apos;em
+          </Link>
           <Link href="/richlist">Richlist</Link>
           <Link href="/tidoshi" className="text-brand-glow">
             Tidoshi

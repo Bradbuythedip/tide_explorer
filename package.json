@@ -2,7 +2,7 @@
   "name": "prevblock",
   "private": true,
   "version": "0.0.0",
-  "description": "Post-quantum block explorer for Tidecoin. prevblock.com",
+  "description": "Tidecoin block explorer and Tide Hold'em. prevblock.com",
   "packageManager": "pnpm@9.12.0",
   "engines": {
     "node": ">=20.11.0"
