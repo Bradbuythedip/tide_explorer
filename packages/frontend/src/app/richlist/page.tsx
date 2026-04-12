@@ -62,7 +62,7 @@ export default async function RichlistPage() {
       <p className="mt-12 text-sm">
         <Link href="/">← Dashboard</Link>
         <span className="mx-3 text-slate-600">·</span>
-        <Link href="/quantum">Quantum risk</Link>
+        <Link href="/threat-model">Threat model</Link>
       </p>
     </main>
   );
@@ -283,8 +283,7 @@ function DataUnavailable() {
       <p className="text-threat-bare">Richlist data not available yet.</p>
       <p className="mt-2 text-slate-400">
         Either the backend isn&apos;t running, the indexer isn&apos;t connected,
-        or the indexer is still catching up. Check{" "}
-        <span className="mono">/api/v1/quantum/supply</span> directly to confirm.
+        or the indexer is still catching up. Check the backend health endpoint to confirm.
       </p>
     </div>
   );

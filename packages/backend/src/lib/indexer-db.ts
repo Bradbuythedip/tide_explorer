@@ -16,7 +16,6 @@ import { formatTdcAmount } from "@prevblock/shared";
 export interface IndexerDb {
   getAddressSummary(address: string): Promise<AddressSummary | null>;
   getRichlist(minSats: bigint, limit: number): Promise<RichlistResult>;
-  getQuantumSupply(): Promise<QuantumSupply>;
   close(): Promise<void>;
 }
 
@@ -87,50 +86,6 @@ export interface RichlistResult {
    *  populating" banner against the real node tip. */
   asOfHeight: number;
   entries: RichlistEntry[];
-}
-
-/**
- * Three-bucket Falcon partition over the entire UTXO set.
- *
- * Bucket definitions (DIRECTIVE.md §0 amendment #3,
- * docs/tidecoin-protocol.md §4):
- *
- *   hashProtected
- *     pubkey_revealed_at_height IS NULL AND
- *     script_type IN (p2pkh_falcon, p2wpkh_falcon, p2wsh_falcon, p2sh)
- *
- *   pubkeyExposed
- *     pubkey_revealed_at_height IS NOT NULL AND
- *     script_type IN (p2pkh_falcon, p2wpkh_falcon, p2wsh_falcon, p2sh)
- *
- *   bareP2pk
- *     script_type = p2pk_falcon (the genesis form; the upstream
- *     Solver blind spot — see docs/tidecoin-protocol.md §3.1)
- *
- *   unclassified
- *     anything else (op_return, witness_unknown, nonstandard).
- *     Always small; tracked separately so the buckets sum to the
- *     total UTXO supply exactly.
- */
-export interface QuantumSupply {
-  totalSats: string;
-  totalTdc: string;
-  hashProtectedSats: string;
-  hashProtectedTdc: string;
-  pubkeyExposedSats: string;
-  pubkeyExposedTdc: string;
-  bareP2pkSats: string;
-  bareP2pkTdc: string;
-  unclassifiedSats: string;
-  unclassifiedTdc: string;
-  /** Indexer height at the moment the aggregate was computed. */
-  asOfHeight: number;
-  /** True iff the indexer has caught up to within 6 blocks of tip,
-   *  meaning the numbers are real. False during catch-up; the UI
-   *  shows a "still indexing" banner instead of fake fractions. */
-  isAtTip: boolean;
-  /** Distance from tip at the time of the query, in blocks. */
-  blocksBehindTip: number;
 }
 
 class PgIndexerDb implements IndexerDb {
@@ -321,62 +276,6 @@ class PgIndexerDb implements IndexerDb {
       indexedSupplySats: headerRow.indexed_supply_sats,
       asOfHeight: Number.parseInt(headerRow.as_of_height ?? "-1", 10),
       entries,
-    };
-  }
-
-  async getQuantumSupply(): Promise<QuantumSupply> {
-    // Single aggregate query — uses the partial index
-    // outputs_unspent_partition_idx for fast scan of just the
-    // unspent UTXOs.
-    const row = await this.pool.query<{
-      hash_protected: string;
-      pubkey_exposed: string;
-      bare_p2pk: string;
-      unclassified: string;
-      total: string;
-      as_of_height: string;
-    }>(
-      `SELECT
-         COALESCE(SUM(CASE
-           WHEN pubkey_revealed_at_height IS NULL
-             AND script_type IN ('p2pkh_falcon','p2wpkh_falcon','p2wsh_falcon','p2sh')
-           THEN value_sats ELSE 0 END), 0)::text AS hash_protected,
-         COALESCE(SUM(CASE
-           WHEN pubkey_revealed_at_height IS NOT NULL
-             AND script_type IN ('p2pkh_falcon','p2wpkh_falcon','p2wsh_falcon','p2sh')
-           THEN value_sats ELSE 0 END), 0)::text AS pubkey_exposed,
-         COALESCE(SUM(CASE
-           WHEN script_type = 'p2pk_falcon'
-           THEN value_sats ELSE 0 END), 0)::text AS bare_p2pk,
-         COALESCE(SUM(CASE
-           WHEN script_type IN ('op_return','witness_unknown','nonstandard')
-           THEN value_sats ELSE 0 END), 0)::text AS unclassified,
-         COALESCE(SUM(value_sats), 0)::text AS total,
-         (SELECT v::text FROM prevblock.chain_state
-           WHERE k='last_indexed_height') AS as_of_height
-       FROM prevblock.outputs
-       WHERE spent_by_txid IS NULL`,
-    );
-
-    const r = row.rows[0]!;
-    const asOfHeight = Number.parseInt(r.as_of_height ?? "-1", 10);
-    return {
-      totalSats: r.total,
-      totalTdc: formatTdcAmount(BigInt(r.total)),
-      hashProtectedSats: r.hash_protected,
-      hashProtectedTdc: formatTdcAmount(BigInt(r.hash_protected)),
-      pubkeyExposedSats: r.pubkey_exposed,
-      pubkeyExposedTdc: formatTdcAmount(BigInt(r.pubkey_exposed)),
-      bareP2pkSats: r.bare_p2pk,
-      bareP2pkTdc: formatTdcAmount(BigInt(r.bare_p2pk)),
-      unclassifiedSats: r.unclassified,
-      unclassifiedTdc: formatTdcAmount(BigInt(r.unclassified)),
-      asOfHeight,
-      // The route layer fills these in by comparing against the
-      // node tip; we don't want indexer-db to know about the RPC
-      // client. Default to false here.
-      isAtTip: false,
-      blocksBehindTip: -1,
     };
   }
 }

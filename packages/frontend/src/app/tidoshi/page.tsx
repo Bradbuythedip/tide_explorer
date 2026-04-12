@@ -70,7 +70,7 @@ export default function TidoshiPage() {
             <span className="mx-3 text-slate-700">·</span>
             <Link href="/genesis">Genesis</Link>
             <span className="mx-3 text-slate-700">·</span>
-            <Link href="/quantum">Quantum</Link>
+            <Link href="/threat-model">Threat model</Link>
           </nav>
         </footer>
       </article>

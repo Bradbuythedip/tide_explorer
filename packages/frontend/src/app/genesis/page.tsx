@@ -154,7 +154,7 @@ export default async function GenesisPage() {
         <span className="mx-3 text-slate-600">·</span>
         <Link href="/richlist">Richlist</Link>
         <span className="mx-3 text-slate-600">·</span>
-        <Link href="/quantum">Quantum</Link>
+        <Link href="/threat-model">Threat model</Link>
       </p>
     </main>
   );
