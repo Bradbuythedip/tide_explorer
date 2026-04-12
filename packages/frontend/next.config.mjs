@@ -1,30 +1,6 @@
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-
-  // poker-ts uses `require("crypto").randomInt()` which only exists in
-  // Node.js. In client bundles, alias `crypto` to our browser shim that
-  // provides randomInt via Web Crypto API.
-  webpack(config, { isServer }) {
-    if (!isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        crypto: resolve(__dirname, "src/game/crypto-shim.js"),
-      };
-      // poker-ts also uses `require("assert")` — provide a minimal
-      // browser fallback so it doesn't fail to bundle.
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        assert: resolve(__dirname, "src/game/assert-shim.js"),
-      };
-    }
-    return config;
-  },
 
   // TEMPORARY ESCAPE HATCH for the first prod deploy.
   //
@@ -59,13 +35,6 @@ const nextConfig = {
   // The single env var works for both because Next does the rewrite
   // server-side, never exposing the backend URL to the client.
   async rewrites() {
-    // Normalize BACKEND_INTERNAL_URL so a missing scheme or a trailing
-    // slash can't turn into a next build compile failure. A previous
-    // deploy set this to 'prevblockbackend-production.up.railway.app'
-    // (no https://) and Next's rewrite validator rejected the whole
-    // build with "destination does not start with /, http://, or
-    // https://". Auto-prepend https:// if the scheme is missing, and
-    // strip any trailing slash so we don't produce '//api/v1/...'.
     let backend = process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:3001";
     if (!/^https?:\/\//i.test(backend)) {
       backend = "https://" + backend;

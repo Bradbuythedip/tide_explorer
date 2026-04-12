@@ -18,6 +18,7 @@ import { registerMempoolRoutes } from "./routes/mempool.js";
 import { registerAddressRoutes } from "./routes/address.js";
 import { registerRichlistRoutes } from "./routes/richlist.js";
 import { registerBlocksRecentRoutes } from "./routes/blocks-recent.js";
+import { registerHoldemRoutes } from "./routes/holdem.js";
 import { registerWsRoutes } from "./routes/ws.js";
 
 export interface BuildServerDeps {
@@ -104,6 +105,7 @@ export async function buildServer(
   await registerMempoolRoutes(app);
   await registerAddressRoutes(app);
   await registerRichlistRoutes(app);
+  await registerHoldemRoutes(app);
 
   // WebSocket route (must come after websocket plugin registration)
   await registerWsRoutes(app, hub);
