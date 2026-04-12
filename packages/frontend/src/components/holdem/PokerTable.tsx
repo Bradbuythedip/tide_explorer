@@ -10,7 +10,7 @@ import { CommunityCards } from "./CommunityCards";
 import { PotDisplay } from "./PotDisplay";
 import { ActionBar } from "./ActionBar";
 import { HandResultOverlay } from "./HandResult";
-import { TidecoinPanel } from "./TidecoinPanel";
+import { ChipPanel } from "./ChipPanel";
 
 const DEFAULT_BUY_IN = 1000;
 
@@ -45,12 +45,10 @@ export function PokerTable() {
     gm.startHand();
   }, []);
 
-  const handleBuyIn = useCallback((chips: number) => {
+  const handleRebuy = useCallback(() => {
     const gm = gmRef.current;
     if (!gm) return;
-    if (gm.isHumanBusted()) {
-      gm.humanRebuy(chips);
-    }
+    gm.humanRebuy(DEFAULT_BUY_IN);
   }, []);
 
   if (!gameState) {
@@ -138,11 +136,12 @@ export function PokerTable() {
         </div>
       </div>
 
-      {/* Tidecoin panel — sidebar */}
+      {/* Chip panel — sidebar */}
       <div className="w-full max-w-[220px] shrink-0">
-        <TidecoinPanel
+        <ChipPanel
           chipStack={gmRef.current?.getHumanStack() ?? DEFAULT_BUY_IN}
-          onBuyIn={handleBuyIn}
+          handsPlayed={gameState.handNumber}
+          onRebuy={handleRebuy}
         />
       </div>
     </div>
