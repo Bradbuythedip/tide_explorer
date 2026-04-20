@@ -4,7 +4,7 @@
  * Root-level error boundary.
  *
  * Catches anything unhandled from a page that doesn't have its own
- * error.tsx (so /block, /tx, /address, /genesis, /holdem, etc. all
+ * error.tsx (so /block, /tx, /address, /genesis, /thesis, etc. all
  * fall through to this one). Replaces Next's default generic
  * "Application error" with an actionable message + retry + escape
  * hatch home.

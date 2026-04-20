@@ -27,7 +27,7 @@ export default async function HomePage() {
           </h1>
           <p className="mt-3 max-w-2xl text-slate-400">
             Search a block height, txid, or address from the bar above. Or
-            jump to the richlist, Tide Hold&apos;em, or the genesis block.
+            jump to the richlist, the monetary thesis, or the genesis block.
           </p>
         </div>
       </header>
@@ -57,7 +57,7 @@ export default async function HomePage() {
 
       <nav className="mt-12 flex flex-wrap gap-4 text-sm">
         <Link href="/genesis">Genesis</Link>
-        <Link href="/holdem">Tide Hold&apos;em</Link>
+        <Link href="/thesis">Monetary Thesis</Link>
         <Link href="/richlist">Richlist</Link>
         <Link href="/glossary">Glossary</Link>
         <Link href="/threat-model">Threat model</Link>
